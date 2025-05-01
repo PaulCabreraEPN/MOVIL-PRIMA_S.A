@@ -123,6 +123,9 @@ dependencies {
 
     implementation ("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
 
+    // Coil para carga de imágenes
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
 
 
 }

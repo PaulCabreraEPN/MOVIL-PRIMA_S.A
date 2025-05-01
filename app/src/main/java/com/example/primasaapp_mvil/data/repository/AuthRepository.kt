@@ -7,18 +7,18 @@ import com.example.primasaapp_mvil.data.remote.LoginResponse
 import com.example.primasaapp_mvil.data.remote.RecoveryPasswordResponse
 import com.example.primasaapp_mvil.data.remote.ResetPasswordRequest
 import com.example.primasaapp_mvil.model.Client
+import com.example.primasaapp_mvil.model.Product
 import retrofit2.Response
 import javax.inject.Inject
 
 class AuthRepository @Inject constructor(private val api:ApiService){
 
-    //Para Login
+    //Login
     suspend fun login (username: String, password: String): Response<LoginResponse>{
         return api.login(LoginRequest(username, password))
     }
 
-    //Para recuperar contraseña
-
+    //Recuperar contraseña
     suspend fun sendResetEmail(email: String): Response<RecoveryPasswordResponse> {
         return api.sendResetEmail(EmailRequest(email))
     }
@@ -30,9 +30,15 @@ class AuthRepository @Inject constructor(private val api:ApiService){
         }
     }
 
-    //Para cargar clientes
+    //Cargar clientes
     suspend fun getClients(token: String): List<Client> {
         val response = api.getClients("Bearer $token")
         return response.data
+    }
+
+    //Cargar productos
+    suspend fun getProducts(token: String): List<Product> {
+        val response = api.getProducts("Bearer $token")
+        return  response.data
     }
 }
