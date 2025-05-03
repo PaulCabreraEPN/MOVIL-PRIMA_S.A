@@ -14,6 +14,6 @@ data class Client (
     val email: String,
     val credit: String,
     val state: String,
-    val Adress: String,
+    val Address: String,
     val Name: String
 )

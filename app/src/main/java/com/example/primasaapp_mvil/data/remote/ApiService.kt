@@ -1,6 +1,7 @@
 package com.example.primasaapp_mvil.data.remote
 
 import com.example.primasaapp_mvil.model.ClientResponse
+import com.example.primasaapp_mvil.model.OrdersResponse
 import com.example.primasaapp_mvil.model.ProductsResponse
 import retrofit2.Response
 import retrofit2.http.Body
@@ -31,4 +32,9 @@ interface ApiService {
     suspend fun getProducts(
         @Header("Authorization") token: String
     ): ProductsResponse
+
+    @GET("orders")
+    suspend fun  getOrders(
+        @Header("Authorization") token: String
+    ): OrdersResponse
 }

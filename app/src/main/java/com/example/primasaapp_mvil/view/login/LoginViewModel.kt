@@ -3,7 +3,6 @@ package com.example.primasaapp_mvil.view.login
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.datastore.dataStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.primasaapp_mvil.data.dataStore.DataStoreManager
@@ -29,7 +28,12 @@ class LoginViewModel @Inject constructor(
                     val data = response.body()?.data
                     loginState = Result.success(response.body()!!)
                     data?.let {
+                        val name = it.seller.names + " " + it.seller.lastNames
                         dataStoreManger.saveToken(it.token)
+                        dataStoreManger.saveUsername(it.seller.username)
+                        dataStoreManger.saveEmail(it.seller.email)
+                        dataStoreManger.saveSalesCity(it.seller.SalesCity)
+                        dataStoreManger.saveName(name)
                     }
                 } else {
                     loginState = Result.failure(Exception("Credenciales inválidas"))

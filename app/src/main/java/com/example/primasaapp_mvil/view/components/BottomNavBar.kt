@@ -42,13 +42,13 @@ fun BottomNavBar(navController: NavController) {
                 navController.navigate("home")
             }
             BottomNavItem(icon = R.drawable.ic_orders, label = "Pedidos") {
-                navController.navigate("orders")
+                navController.navigate("inventory")
             }
             BottomNavItem(icon = R.drawable.ic_clients, label = "Clientes") {
                 navController.navigate("clients")
             }
             BottomNavItem(icon = R.drawable.ic_documents, label = "Documentos") {
-                navController.navigate("documents")
+                navController.navigate("orders")
             }
         }
     }
