@@ -38,16 +38,16 @@ fun BottomNavBar(navController: NavController) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomNavItem(icon = R.drawable.ic_home, label = "Inicio") {
+            BottomNavItem(icon = R.drawable.home_ic_b, label = "Inicio") {
                 navController.navigate("home")
             }
-            BottomNavItem(icon = R.drawable.ic_orders, label = "Pedidos") {
+            BottomNavItem(icon = R.drawable.orders_ic_b, label = "Pedidos") {
                 navController.navigate("inventory")
             }
-            BottomNavItem(icon = R.drawable.ic_clients, label = "Clientes") {
+            BottomNavItem(icon = R.drawable.clients_ic_b, label = "Clientes") {
                 navController.navigate("clients")
             }
-            BottomNavItem(icon = R.drawable.ic_documents, label = "Documentos") {
+            BottomNavItem(icon = R.drawable.document_ic_b, label = "Documentos") {
                 navController.navigate("orders")
             }
         }
@@ -59,19 +59,14 @@ fun BottomNavItem(icon: Int, label: String, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .clickable { onClick() }
-            .padding(4.dp),
+            .padding(6.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             painter = painterResource(id = icon),
             contentDescription = label,
             tint = Color.Black,
-            modifier = Modifier.size(24.dp)
-        )
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = Color.Black
+            modifier = Modifier.size(32.dp)
         )
     }
 }
