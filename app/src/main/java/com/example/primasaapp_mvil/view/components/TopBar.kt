@@ -32,7 +32,7 @@ fun TopBar() {
             Image(
                 painter = painterResource(id = R.drawable.logo_atlas_w), // Tu logo aquí
                 contentDescription = "Logo",
-                modifier = Modifier.size(50.dp)
+                modifier = Modifier.size(48.dp)
             )
 
             // Icono de perfil a la derecha

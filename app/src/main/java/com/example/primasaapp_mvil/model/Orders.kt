@@ -5,6 +5,7 @@ data class OrdersResponse(
 )
 
 data class Order(
+    val _id: String,
     val customer: CustomerData,
     val products: List<ProductSelected>,
     val discountApplied: Double,
@@ -12,8 +13,14 @@ data class Order(
     val totalWithTax: Double,
     val status: String,
     val comment: String,
-    val seller: SellerData
+    val seller: SellerData,
+    val registrationDate: String?,
+    val lastUpdate: String?,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val __v: Int?
 )
+
 
 data class CustomerData(
     val _id: String,
@@ -33,10 +40,10 @@ data class ProductSelected(
 )
 
 data class ProductDetails(
-    val _id: String,
-    val product_name: String,
-    val measure: String,
-    val price: Double
+    val _id: String?,
+    val product_name: String?,
+    val measure: String?,  // antes era String
+    val price: Double?
 )
 
 data class SellerData(

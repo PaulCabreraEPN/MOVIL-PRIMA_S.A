@@ -7,8 +7,8 @@ import com.example.primasaapp_mvil.data.remote.LoginResponse
 import com.example.primasaapp_mvil.data.remote.RecoveryPasswordResponse
 import com.example.primasaapp_mvil.data.remote.ResetPasswordRequest
 import com.example.primasaapp_mvil.model.Client
-import com.example.primasaapp_mvil.model.Product
 import com.example.primasaapp_mvil.model.Order
+import com.example.primasaapp_mvil.model.ProductResponse
 import retrofit2.Response
 import javax.inject.Inject
 
@@ -37,11 +37,6 @@ class AuthRepository @Inject constructor(private val api:ApiService){
         return response.data
     }
 
-    //Traer productos
-    suspend fun getProducts(token: String): List<Product> {
-        val response = api.getProducts("Bearer $token")
-        return  response.data
-    }
 
     //Traer Ordenes
     suspend fun getOrders(token: String): List<Order>{

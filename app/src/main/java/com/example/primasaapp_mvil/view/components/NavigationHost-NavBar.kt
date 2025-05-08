@@ -15,17 +15,22 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifi
         modifier = modifier
     ) {
         composable("home") { HomeScreen() }
+
         composable("inventory") {
-            InventarioView(onVerMasClick = { categoria ->
+            InventarioView(onCategoriaClick = { categoria ->
                 navController.navigate("categoria/$categoria")
             })
         }
+
         composable("clients") { ClientsScreen() }
+
         composable("orders") { OrdersScreen() }
+
         composable("categoria/{nombreCategoria}") { backStackEntry ->
             val nombreCategoria = backStackEntry.arguments?.getString("nombreCategoria") ?: ""
-            CategoriaDetailScreen(nombreCategoria)
+            CategoriaDetailScreen(nombreCategoria = nombreCategoria)
         }
     }
 }
+
 
