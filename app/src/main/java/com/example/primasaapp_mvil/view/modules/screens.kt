@@ -1,5 +1,7 @@
 package com.example.primasaapp_mvil.view.modules
 
+import android.util.Log
+import android.util.Patterns
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -16,8 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.primasaapp_mvil.ui.theme.PRIMASAAPPMóvilTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -30,7 +30,6 @@ import com.example.primasaapp_mvil.viewmodel.ClientViewModel
 import com.example.primasaapp_mvil.viewmodel.ProductViewModel
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -60,13 +59,32 @@ import com.example.primasaapp_mvil.viewmodel.UserViewModel
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.ui.draw.clip
-
+import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.navigation.NavHostController
+import com.example.primasaapp_mvil.model.ClientRequest
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.ui.text.input.KeyboardType
+import com.example.primasaapp_mvil.model.ClientUpdate
+import com.example.primasaapp_mvil.model.OrderToSend
+import com.example.primasaapp_mvil.model.ProductToSendJSON
+import com.example.primasaapp_mvil.view.components.BarraInferiorPedido
+import kotlinx.coroutines.delay
+import java.math.BigDecimal
+import java.math.RoundingMode
 
 //DASHBOARD
 @Composable
 fun HomeScreen(
+    navController: NavController,
     orderViewModel: OrderViewModel = hiltViewModel(),
     userViewModel: UserViewModel = hiltViewModel()
 ) {
@@ -120,7 +138,7 @@ fun HomeScreen(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        OpcionesGrid()
+        OpcionesGrid(navController)
     }
 }
 
@@ -219,14 +237,14 @@ fun VentasCard(totalPedidos: Int, totalVentas: Double) {
 
 
 @Composable
-fun OpcionesGrid() {
+fun OpcionesGrid(navController: NavController) {
     val opciones = listOf(
-        "Tomar Pedido" to Icons.Default.Edit,
-        "Registrar Cliente" to Icons.Default.PersonAdd,
-        "Consular Inventario" to Icons.Default.List,
-        "Modificar Pedido" to Icons.Default.EditNote,
-        "Productos Destacados" to Icons.Default.Star,
-        "Mis Proformas" to Icons.Default.Receipt
+        Triple("Tomar Pedido", Icons.Default.Edit, "resgisterOrder"),
+        Triple("Registrar Cliente", Icons.Default.PersonAdd, "registerClient"),
+        Triple("Consular Inventario", Icons.Default.List, "inventory"),
+        Triple("Modificar Pedido", Icons.Default.EditNote, "orders"),
+        Triple("Productos Destacados", Icons.Default.Star, "inventory"),
+        Triple("Mis Proformas", Icons.Default.Receipt, "orders")
     )
 
     Column(modifier = Modifier.padding(horizontal = 8.dp)) {
@@ -235,8 +253,22 @@ fun OpcionesGrid() {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                fila.forEach { (label, icon) ->
-                    OpcionShortcut(label = label, icon = icon, modifier = Modifier.weight(1f))
+                fila.forEach { (label, icon, route) ->
+                    Button(
+                        onClick = { navController.navigate(route) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(1f),
+                        contentPadding = PaddingValues(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = MaterialTheme.colorScheme.primary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(4.dp),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        OpcionShortcut(label = label, icon = icon)
+                    }
                 }
                 repeat(3 - fila.size) {
                     Spacer(modifier = Modifier.weight(1f))
@@ -247,38 +279,26 @@ fun OpcionesGrid() {
     }
 }
 
+
 @Composable
 fun OpcionShortcut(label: String, icon: ImageVector, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clickable { /* TODO: Navegar a pantalla */ },
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+    Column(
+        modifier = modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                modifier = Modifier.size(28.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = label,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            modifier = Modifier.size(32.dp),
+            tint = Color.Black.copy(alpha = 0.87f)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall.copy(color = Color.Black.copy(alpha = 0.87f)),
+            textAlign = TextAlign.Center
+        )
     }
 }
 
@@ -408,10 +428,13 @@ fun ProductoCard(
     producto: Product,
     modifier: Modifier = Modifier
 ) {
+    var showDialog by remember { mutableStateOf(false) }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min),
+            .height(IntrinsicSize.Min)
+            .clickable { showDialog = true },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -496,33 +519,127 @@ fun ProductoCard(
             )
         }
     }
+
+    if (showDialog) {
+        ProductDetailDialog(product = producto) {
+            showDialog = false
+        }
+    }
 }
+
+
+@Composable
+fun ProductDetailDialog(product: Product, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            tonalElevation = 8.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = product.product_name,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF222222)
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                AsyncImage(
+                    model = product.imgUrl,
+                    contentDescription = product.product_name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                DetailRow(label = "Referencia:", value = product.reference)
+                DetailRow(label = "Descripción:", value = product.description)
+                DetailRow(label = "Precio:", value = "$${String.format("%.2f", product.price)}")
+                DetailRow(label = "Stock disponible:", value = "${product.stock}")
+                DetailRow(label = "Código:", value = "${product.id}")
+                DetailRow(
+                    label = "Estado:",
+                    value = if (product.stock > 0) "Disponible" else "Agotado",
+                    valueColor = if (product.stock > 0) Color(0xFF008000) else Color.Red
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Cerrar")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DetailRow(label: String, value: String, valueColor: Color = Color.DarkGray) {
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontWeight = FontWeight.Medium,
+                color = Color.Gray
+            )
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontWeight = FontWeight.SemiBold,
+                color = valueColor
+            )
+        )
+    }
+}
+
 
 
 //CLIENTES
 @Composable
-fun ClientsScreen(viewModel: ClientViewModel = hiltViewModel()) {
+fun ClientsScreen(navController: NavController, viewModel: ClientViewModel = hiltViewModel()) {
     val clients by viewModel.clients.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedInitial by remember { mutableStateOf<Char?>(null) }
 
     val filteredClients = clients
         .filter {
-            it.Name.contains(searchQuery, ignoreCase = true) ||
+            it.ComercialName.contains(searchQuery, ignoreCase = true) ||
                     it.Ruc.toString().contains(searchQuery)
         }
-        .sortedBy { it.Name.lowercase() }
+        .sortedBy { it.ComercialName.lowercase() }
 
     val displayedClients = selectedInitial?.let { initial ->
-        filteredClients.filter { it.Name.first().uppercaseChar() == initial }
+        filteredClients.filter { it.ComercialName.first().uppercaseChar() == initial }
     } ?: filteredClients
 
-    val groupedClients = displayedClients.groupBy { it.Name.first().uppercaseChar() }
+    val groupedClients = displayedClients.groupBy { it.ComercialName.first().uppercaseChar() }
 
     Scaffold(
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* Acción al hacer clic */ },
+                onClick = {
+                    navController.navigate("registerClient")
+                },
                 containerColor = Blue50,
                 contentColor = Color.White,
                 shape = CircleShape
@@ -537,17 +654,15 @@ fun ClientsScreen(viewModel: ClientViewModel = hiltViewModel()) {
                 .padding(paddingValues)
                 .background(Color(0xFFF6F6F6))
         ) {
-            // Título
             Text(
                 text = "Clientes",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E3A8A)
+                    color = Color(0xFF005BBB)
                 ),
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
             )
 
-            // Buscador
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = {
@@ -575,30 +690,28 @@ fun ClientsScreen(viewModel: ClientViewModel = hiltViewModel()) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Fila con filtro a la izquierda y lista de clientes a la derecha
             Row(modifier = Modifier.fillMaxSize()) {
-
-                // Barra lateral de letras a la izquierda
-                Column(
+                LazyColumn(
                     modifier = Modifier
                         .padding(start = 8.dp, end = 8.dp)
                         .width(36.dp)
                         .fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
-                    LetterFilterButton(
-                        label = "•",
-                        isSelected = selectedInitial == null,
-                        onClick = {
-                            selectedInitial = null
-                            searchQuery = ""
-                        }
-                    )
+                    item {
+                        LetterFilterButton(
+                            label = "•",
+                            isSelected = selectedInitial == null,
+                            onClick = {
+                                selectedInitial = null
+                                searchQuery = ""
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    ('A'..'Z').forEach { letter ->
+                    items(('A'..'Z').toList()) { letter ->
                         LetterFilterButton(
                             label = letter.toString(),
                             isSelected = selectedInitial == letter,
@@ -607,10 +720,10 @@ fun ClientsScreen(viewModel: ClientViewModel = hiltViewModel()) {
                                 searchQuery = ""
                             }
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
 
-                // Lista principal a la derecha
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
@@ -641,7 +754,7 @@ fun ClientsScreen(viewModel: ClientViewModel = hiltViewModel()) {
                         }
 
                         items(clientsForLetter) { client ->
-                            ClientCard(client)
+                            ClientCard(client, navController)
                             Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
@@ -690,14 +803,19 @@ fun LetterFilterButton(
 
 
 @Composable
-fun ClientCard(client: Client) {
+fun ClientCard(
+    client: Client,
+    navController: NavController
+) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { navController.navigate("clientDetail/${client.Ruc}") } // 👈 Redirige al hacer clic en la tarjeta
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -706,7 +824,7 @@ fun ClientCard(client: Client) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = client.Name,
+                        text = client.ComercialName,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
@@ -715,7 +833,11 @@ fun ClientCard(client: Client) {
                     )
                 }
 
-                IconButton(onClick = { expanded = !expanded }) {
+                IconButton(
+                    onClick = {
+                        expanded = !expanded
+                    }
+                ) {
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = if (expanded) "Mostrar menos" else "Mostrar más"
@@ -725,9 +847,9 @@ fun ClientCard(client: Client) {
 
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.padding(top = 8.dp)) {
+                    Text(text = "Nombre del propietario: ${client.Name}", fontSize = 14.sp)
                     Text(text = "Teléfono: ${client.telephone}", fontSize = 14.sp)
                     Text(text = "Email: ${client.email}", fontSize = 14.sp)
-                    Text(text = "Crédito: ${client.credit}", fontSize = 14.sp)
                     Text(text = "Dirección: ${client.Address}", fontSize = 14.sp)
                     Text(
                         text = client.state,
@@ -740,24 +862,603 @@ fun ClientCard(client: Client) {
     }
 }
 
-
-@Preview(showBackground = true)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ClientScreenPreview() {
-    PRIMASAAPPMóvilTheme {
-        ClientsScreen()
+fun ClientDetailScreen(
+    clientRuc: String,
+    clientViewModel: ClientViewModel,
+    onBack: () -> Unit
+) {
+    val client by clientViewModel.selectedClient.collectAsState()
+    val registerResult by clientViewModel.registerResult.collectAsState()
+    val isLoading by clientViewModel.isLoading.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    var telephone by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var state by remember { mutableStateOf("") }
+
+    var telephoneError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var addressError by remember { mutableStateOf<String?>(null) }
+
+    var stateMenuExpanded by remember { mutableStateOf(false) }
+    val stateOptions = listOf("al día", "en deuda")
+
+    var hasInitialized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(clientRuc) {
+        clientViewModel.fetchClientById(clientRuc)
+    }
+
+    LaunchedEffect(registerResult) {
+        registerResult?.onSuccess { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            delay(1000)
+            onBack()
+            clientViewModel.clearRegisterResult()
+        }?.onFailure { error ->
+            snackbarHostState.showSnackbar(
+                message = error.message ?: "Error desconocido",
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            clientViewModel.clearRegisterResult()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                val isError = data.visuals.message.contains("error", ignoreCase = true)
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (isError) Color.Red else Color(0xFF005BBB),
+                    contentColor = Color.White
+                )
+            }
+        },
+        containerColor = Color(0xFFF6F6F6)
+    ) { padding ->
+
+        if (isLoading || client == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF005BBB))
+            }
+        } else {
+            val currentClient = client!!
+
+            if (!hasInitialized) {
+                telephone = currentClient.telephone.toString()
+                email = currentClient.email ?: ""
+                address = currentClient.Address ?: ""
+                state = currentClient.state ?: ""
+                hasInitialized = true
+            }
+
+            val name = currentClient.Name ?: ""
+            val ruc = currentClient.Ruc.toString()
+            val comercialName = currentClient.ComercialName ?: ""
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(padding)
+                    .padding(10.dp)
+            ) {
+                Text(
+                    text = "Clientes",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF005BBB)
+                    ),
+                    modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp)
+                )
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Información del Cliente", style = MaterialTheme.typography.labelLarge)
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.Red)
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = name,
+                            onValueChange = {},
+                            label = { Text("Nombre del Cliente") },
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = Color.Gray,
+                                disabledBorderColor = Color.LightGray,
+                                disabledLabelColor = Color.Gray
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = comercialName,
+                            onValueChange = {},
+                            label = { Text("Nombre Comercial") },
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = Color.Gray,
+                                disabledBorderColor = Color.LightGray,
+                                disabledLabelColor = Color.Gray
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = ruc,
+                            onValueChange = {},
+                            label = { Text("RUC") },
+                            readOnly = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = false,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                disabledTextColor = Color.Gray,
+                                disabledBorderColor = Color.LightGray,
+                                disabledLabelColor = Color.Gray
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = telephone,
+                            onValueChange = {
+                                if (!isLoading) {
+                                    telephone = it
+                                    telephoneError = if (!it.matches(Regex("^09\\d{8}\$"))) "Teléfono inválido" else null
+                                }
+                            },
+                            label = { Text("Teléfono") },
+                            isError = telephoneError != null,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isLoading
+                        )
+                        telephoneError?.let {
+                            Text(text = it, color = Color.Red, style = MaterialTheme.typography.labelSmall)
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = {
+                                if (!isLoading) {
+                                    email = it
+                                    emailError = if (!Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Correo inválido" else null
+                                }
+                            },
+                            label = { Text("Correo electrónico") },
+                            isError = emailError != null,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isLoading
+                        )
+                        emailError?.let {
+                            Text(text = it, color = Color.Red, style = MaterialTheme.typography.labelSmall)
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = address,
+                            onValueChange = {
+                                if (!isLoading) {
+                                    address = it
+                                    addressError = if (it.length !in 8..200) "Dirección debe tener entre 8 y 200 caracteres" else null
+                                }
+                            },
+                            label = { Text("Dirección") },
+                            isError = addressError != null,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isLoading
+                        )
+                        addressError?.let {
+                            Text(text = it, color = Color.Red, style = MaterialTheme.typography.labelSmall)
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        ExposedDropdownMenuBox(
+                            expanded = stateMenuExpanded,
+                            onExpandedChange = {
+                                if (!isLoading) {
+                                    stateMenuExpanded = !stateMenuExpanded
+                                }
+                            }
+                        ) {
+                            OutlinedTextField(
+                                value = state,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Estado") },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = stateMenuExpanded)
+                                },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                enabled = !isLoading
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = stateMenuExpanded,
+                                onDismissRequest = { stateMenuExpanded = false },
+                                modifier = Modifier.background(Color.White)
+                            ) {
+                                stateOptions.forEachIndexed { index, option ->
+                                    DropdownMenuItem(
+                                        onClick = {
+                                            state = option
+                                            stateMenuExpanded = false
+                                        },
+                                        text = { Text(option) }
+                                    )
+                                    if (index < stateOptions.lastIndex) {
+                                        Divider(thickness = 0.5.dp, color = Color.LightGray)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                telephoneError = if (!telephone.matches(Regex("^09\\d{8}\$"))) "Teléfono inválido" else null
+                                emailError = if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) "Correo inválido" else null
+                                addressError = if (address.length !in 8..200) "Dirección debe tener entre 8 y 200 caracteres" else null
+
+                                if (telephoneError == null && emailError == null && addressError == null) {
+                                    val updatedClient = ClientUpdate(
+                                        Address = address,
+                                        telephone = telephone,
+                                        email = email,
+                                        state = state
+                                    )
+                                    clientViewModel.updateClient(clientRuc, updatedClient)
+                                }
+                            },
+                            enabled = !isLoading,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E3A8A))
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            } else {
+                                Text("Guardar Cambios", color = Color.White)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
+
+
+@Composable
+fun RegisterClientScreen(
+    viewModel: ClientViewModel = hiltViewModel(),
+    onSuccess: () -> Unit = {}
+) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val registerResult by viewModel.registerResult.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+
+    var name by remember { mutableStateOf("") }
+    var nameError by remember { mutableStateOf<String?>(null) }
+
+    var commercialName by remember { mutableStateOf("") }
+    var commercialNameError by remember { mutableStateOf<String?>(null) }
+
+    var ruc by remember { mutableStateOf("") }
+    var rucError by remember { mutableStateOf<String?>(null) }
+
+    var email by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
+
+    var address by remember { mutableStateOf("") }
+    var addressError by remember { mutableStateOf<String?>(null) }
+
+    var phone by remember { mutableStateOf("") }
+    var phoneError by remember { mutableStateOf<String?>(null) }
+
+    var state by remember { mutableStateOf("al día") }
+    var credit by remember { mutableStateOf("Crédito") } // no usado aquí, lo dejé por si quieres usarlo
+
+    val context = LocalContext.current
+
+    // Validación para habilitar el botón
+    val isFormValid = listOf(
+        nameError,
+        commercialNameError,
+        rucError,
+        emailError,
+        addressError,
+        phoneError
+    ).all { it == null } &&
+            name.isNotBlank() &&
+            commercialName.isNotBlank() &&
+            ruc.length == 13 &&
+            email.isNotBlank() &&
+            Patterns.EMAIL_ADDRESS.matcher(email).matches() &&
+            address.isNotBlank() &&
+            phone.length == 10
+
+    // Manejo del resultado de registro (mostrar Snackbar)
+    LaunchedEffect(registerResult) {
+        registerResult?.onSuccess { message ->
+            snackbarHostState.showSnackbar(
+                message = "Cliente registrado con éxito",
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            onSuccess()
+            viewModel.clearRegisterResult()
+        }?.onFailure { error ->
+            snackbarHostState.showSnackbar(
+                message = error.message ?: "Error desconocido",
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearRegisterResult()
+        }
+    }
+
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                val isError = data.visuals.message.contains("error", ignoreCase = true)
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (isError) Color.Red else Color(0xFF005BBB),
+                    contentColor = Color.White
+                )
+            }
+        },
+        containerColor = Color(0xFFF6F6F6)
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF6F6F6))
+                .padding(padding)
+        ) {
+            Text(
+                text = "Nuevo Cliente",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF005BBB)
+                ),
+                modifier = Modifier.padding(16.dp)
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    // Nombre
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = {
+                            name = it
+                            nameError = if (it.isBlank()) "El nombre es obligatorio" else null
+                        },
+                        label = { Text("Nombre del Cliente") },
+                        isError = nameError != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    nameError?.let { Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall) }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Nombre Comercial
+                    OutlinedTextField(
+                        value = commercialName,
+                        onValueChange = {
+                            commercialName = it
+                            commercialNameError = if (it.isBlank()) "El nombre comercial es obligatorio" else null
+                        },
+                        label = { Text("Nombre Comercial") },
+                        isError = commercialNameError != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    commercialNameError?.let { Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall) }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // RUC
+                    OutlinedTextField(
+                        value = ruc,
+                        onValueChange = {
+                            ruc = it
+                            rucError = if (it.length != 13 || !it.all { ch -> ch.isDigit() }) "El RUC debe tener 13 dígitos numéricos" else null
+                        },
+                        label = { Text("RUC del Cliente") },
+                        isError = rucError != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    rucError?.let { Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall) }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Email
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = {
+                            email = it
+                            emailError = if (!Patterns.EMAIL_ADDRESS.matcher(it).matches()) "Correo electrónico no válido" else null
+                        },
+                        label = { Text("Correo electrónico") },
+                        isError = emailError != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                    )
+                    emailError?.let { Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall) }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Dirección
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = {
+                            address = it
+                            addressError = if (it.isBlank()) "La dirección es obligatoria" else null
+                        },
+                        label = { Text("Dirección") },
+                        isError = addressError != null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    addressError?.let { Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall) }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Teléfono
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = {
+                            phone = it
+                            phoneError = if (it.length != 10 || !it.all { ch -> ch.isDigit() }) "El teléfono debe tener 10 dígitos numéricos" else null
+                        },
+                        label = { Text("Teléfono") },
+                        isError = phoneError != null,
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                    )
+                    phoneError?.let { Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall) }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            // Validar todos los campos al hacer clic en Registrar
+                            nameError = if (name.isBlank()) "El nombre es obligatorio" else null
+                            commercialNameError = if (commercialName.isBlank()) "El nombre comercial es obligatorio" else null
+                            rucError = if (ruc.length != 13 || !ruc.all { ch -> ch.isDigit() }) "El RUC debe tener 13 dígitos numéricos" else null
+                            emailError = if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) "Correo electrónico no válido" else null
+                            addressError = if (address.isBlank()) "La dirección es obligatoria" else null
+                            phoneError = if (phone.length != 10 || !phone.all { ch -> ch.isDigit() }) "El teléfono debe tener 10 dígitos numéricos" else null
+
+                            val hasError = listOf(
+                                nameError, commercialNameError, rucError, emailError, addressError, phoneError
+                            ).any { it != null }
+
+                            if (!hasError) {
+                                val client = ClientRequest(
+                                    Name = name,
+                                    ComercialName = commercialName,
+                                    Ruc = ruc,
+                                    email = email,
+                                    Address = address,
+                                    telephone = phone,
+                                    state = state
+                                )
+                                viewModel.registerClient(client)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isFormValid) Color(0xFF1E519D) else Color.Gray,
+                            contentColor = Color.White
+                        ),
+                        enabled = isFormValid && !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                strokeWidth = 2.dp,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        } else {
+                            Text("Registrar")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+fun CustomTextField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit
+) {
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        modifier = Modifier
+            .fillMaxWidth(0.95f)
+            .height(60.dp)
+            .padding(vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = TextFieldDefaults.colors(
+            unfocusedContainerColor = Color.White,
+            focusedContainerColor = Color.White
+        )
+    )
+}
+
+
 //ORDERS
 @Composable
-fun OrdersScreen(orderViewModel: OrderViewModel = hiltViewModel()) {
+fun OrdersScreen(
+    navController: NavHostController,
+    orderViewModel: OrderViewModel = hiltViewModel()
+) {
     val orders by orderViewModel.orders.collectAsState()
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F6F6)), // Color de fondo de toda la pantalla
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { /* TODO: Navegar a nuevo pedido */ },
+                onClick = { navController.navigate("resgisterOrder") },
                 containerColor = Color(0xFF005BBB),
                 contentColor = Color.White,
                 shape = CircleShape
@@ -769,6 +1470,7 @@ fun OrdersScreen(orderViewModel: OrderViewModel = hiltViewModel()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(Color(0xFFF6F6F6)) // Asegura que el Column también tenga el fondo
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
@@ -784,10 +1486,23 @@ fun OrdersScreen(orderViewModel: OrderViewModel = hiltViewModel()) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            LazyColumn {
-                items(orders) { order ->
-                    OrderCard(order = order)
-                    Spacer(modifier = Modifier.height(16.dp))
+            if (orders.isEmpty()) {
+                Text(
+                    text = "No hay pedidos registrados.",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            } else {
+                LazyColumn {
+                    items(orders) { order ->
+                        OrderCard(
+                            order = order,
+                            onClick = {
+                                navController.navigate("orderDetail/${order._id}")
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                 }
             }
         }
@@ -796,16 +1511,20 @@ fun OrdersScreen(orderViewModel: OrderViewModel = hiltViewModel()) {
 
 
 
-
 @Composable
-fun OrderCard(order: Order) {
+fun OrderCard(
+    order: Order,
+    onClick: (Order) -> Unit
+) {
     var expanded by remember { mutableStateOf(false) }
     val customer = order.customer
     val products = order.products
     val firstProduct = products.firstOrNull()
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick(order) }, // navegación aquí
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -817,7 +1536,7 @@ fun OrderCard(order: Order) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Orden #${order.hashCode().toString().takeLast(5)}",
+                    text = "Orden #${order._id.toString().takeLast(5)}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -860,15 +1579,16 @@ fun OrderCard(order: Order) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { expanded = !expanded }
                     .padding(top = 8.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Contraer" else "Expandir",
-                    tint = Color(0xFF005BBB)
-                )
+                IconButton(onClick = { expanded = !expanded }) {
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (expanded) "Contraer" else "Expandir",
+                        tint = Color(0xFF005BBB)
+                    )
+                }
             }
         }
     }
@@ -885,11 +1605,665 @@ fun ProductItem(product: ProductSelected) {
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = "${details.product_name} ${details.measure}", fontSize = 14.sp)
+            Text(text = "${details.product_name} ${details.price}", fontSize = 14.sp)
             Text(text = "$${details.price}", fontSize = 13.sp, color = Color.Gray)
         }
         Text(text = "${product.quantity}", fontSize = 14.sp)
     }
 }
+
+@Composable
+fun OrderDetailScreen(
+    orderId: String,
+    orderViewModel: OrderViewModel,
+    onBack: () -> Unit
+) {
+    val order by orderViewModel.selectedOrder.collectAsState()
+
+    println(order)
+    LaunchedEffect(orderId) {
+        orderViewModel.fetchOrderById(orderId)
+    }
+
+    Scaffold(
+        topBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                shadowElevation = 3.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(64.dp)
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Volver",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+
+                    Text(
+                        text = "Proforma",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+
+                    IconButton(onClick = { /* Acción editar */ }) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = "Editar",
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                }
+            }
+        },
+        containerColor = Color(0xFFF5F5F5)
+    ) { innerPadding ->
+        order?.let {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState())
+                    .background(Color(0xFFF5F5F5))
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+
+                        // ID
+                        val orderIdSafe = order!!._id.takeLast(5)
+                        Text(
+                            text = "Orden #$orderIdSafe",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Información del cliente
+                        order!!.customer.let { customer ->
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                InfoRow("Cliente:", customer.Name)
+                                InfoRow("RUC:", customer.Ruc.toString())
+                                InfoRow("Dirección:", customer.Address)
+                                InfoRow("Teléfono:", customer.telephone.toString())
+                                InfoRow("Email:", customer.email)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Productos
+                        Text(
+                            text = "Productos:",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                        if (order!!.products.isEmpty()) {
+                            Text("No hay productos", color = Color.Gray)
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                order!!.products.forEach { product ->
+                                    ProductItemRow(product)
+                                }
+                            }
+                        }
+
+                        Divider(
+                            color = MaterialTheme.colorScheme.outlineVariant,
+                            thickness = 1.dp,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
+
+                        val descu = order!!.netTotal - (order!!.netTotal * (order!!.discountApplied.toDouble() / 100))
+
+                        println(descu)
+                        // Resumen de totales
+                        SummarySection(
+                            discountPercent = order!!.discountApplied,
+                            discountAmount = (order!!.netTotal * (order!!.discountApplied.toDouble() / 100)),
+                            netTotal = order!!.netTotal,
+                            totalWithTax = order!!.totalWithTax
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+@Composable
+private fun ProductItemRow(product: ProductSelected) {
+    val details = product.productDetails
+    val quantity = product.quantity
+    val name = details.product_name ?: "Sin nombre"
+    val reference = details.reference ?: ""
+    val unitPrice = details.price ?: 0.0
+    val total = unitPrice * quantity
+
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "$quantity X $name",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "$${"%.2f".format(total)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Text(
+            text = "$${"%.2f".format(unitPrice)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            modifier = Modifier.padding(start = 24.dp)
+        )
+    }
+}
+
+@Composable
+private fun SummarySection(
+    discountPercent: Int,
+    discountAmount: Double,
+    netTotal: Double,
+    totalWithTax: Double
+) {
+    val summaryColor = Color(0xFF6F9EDC)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = summaryColor.copy(alpha = 0.2f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Fila de descuento aplicado
+        SummaryRowStyled("Total Neto:", "$${"%.2f".format(netTotal)}", summaryColor)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Descuento Aplicado:",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = "${discountPercent.toInt()}%",
+                style = MaterialTheme.typography.bodyMedium,
+                color = summaryColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        // Resto de filas
+        SummaryRowStyled("Valor Desc.Aplicado:", "- $${"%.2f".format(discountAmount)}", summaryColor)
+        SummaryRowStyled(
+            "Total con IVA 15%:",
+            "$${"%.2f".format(totalWithTax)}",
+            summaryColor,
+            isBold = true
+        )
+    }
+}
+
+@Composable
+private fun SummaryRowStyled(
+    label: String,
+    value: String,
+    accentColor: Color,
+    isBold: Boolean = false
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = if (isBold) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+        )
+        Text(
+            text = value,
+            style = if (isBold) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+            color = if (isBold) accentColor else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+        )
+    }
+}
+
+@Composable
+fun RegisterOrderScreen(
+    navController: NavController,
+    viewModel: ProductViewModel = hiltViewModel(),
+    orderViewModel: OrderViewModel,
+    clientViewModel: ClientViewModel = hiltViewModel(),
+    onBack: () -> Unit
+) {
+    val productos by viewModel.products.collectAsState()
+    val clients by clientViewModel.clients.collectAsState()
+    val registerResult by orderViewModel.registerResult.collectAsState()
+
+    var expandedClient by remember { mutableStateOf(false) }
+    val selectedClient by orderViewModel.selectedClient.collectAsState()
+    val selectedDiscount by orderViewModel.selectedDiscount.collectAsState()
+
+    val selectedProducts = orderViewModel.obtenerProductosParaEnviar(productos)
+
+    var expandedDiscount by remember { mutableStateOf(false) }
+    val discountOptions = listOf(
+        "20 % de descuento a 8 días",
+        "20 % de descuento a 15 días",
+        "20 % de descuento a 30 días",
+        "15 % de descuento a 8 días",
+        "15 % de descuento a 15 días",
+        "15 % de descuento a 30 días"
+    )
+
+    var comment by remember { mutableStateOf("") }
+
+    val subtotal = selectedProducts.sumOf { it.price * it.quantity }
+
+    val discountPercent = when {
+        selectedDiscount?.startsWith("20") == true -> 20
+        selectedDiscount?.startsWith("15") == true -> 15
+        else -> 10
+    }
+
+    val discountAmount = subtotal * discountPercent / 100
+    val totalWithDiscount = subtotal - discountAmount
+    val totalNetoRounded = BigDecimal(totalWithDiscount).setScale(2, RoundingMode.HALF_UP).toDouble()
+    val totalWithTax = BigDecimal(totalWithDiscount * 1.12).setScale(2, RoundingMode.HALF_UP).toDouble()
+
+    val isFormValid = selectedClient != null && selectedDiscount != null && selectedProducts.isNotEmpty()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF6F6F6))
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        Text(
+            text = "Registrar Pedido",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF005BBB)
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // CLIENTE
+        Text("Cliente", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = selectedClient?.ComercialName ?: "Seleccionar",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expandedClient = true },
+                trailingIcon = {
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+            )
+
+            DropdownMenu(
+                expanded = expandedClient,
+                onDismissRequest = { expandedClient = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                clients.forEach { client ->
+                    DropdownMenuItem(
+                        onClick = {
+                            orderViewModel.setSelectedClient(client)
+                            expandedClient = false
+                        },
+                        text = {
+                            Column {
+                                Text(client.ComercialName)
+                                Text("RUC: ${client.Ruc}", style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // PRODUCTOS
+        Text("Productos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+        if (selectedProducts.isEmpty()) {
+            Button(
+                onClick = { navController.navigate("productSelecter") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF60A5FA))
+            ) {
+                Text("Seleccionar productos")
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                selectedProducts.forEach { product ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("${product.name} x${product.quantity}")
+                        Text("$${"%.2f".format(product.price * product.quantity)}")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { navController.navigate("productSelecter") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF60A5FA))
+                ) {
+                    Text("Cambiar productos")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // DESCUENTO
+        Text("Descuento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = selectedDiscount ?: "Seleccionar descuento",
+                onValueChange = {},
+                readOnly = true,
+                enabled = false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expandedDiscount = true },
+                trailingIcon = {
+                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                }
+            )
+
+            DropdownMenu(
+                expanded = expandedDiscount,
+                onDismissRequest = { expandedDiscount = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                discountOptions.forEach { discount ->
+                    DropdownMenuItem(
+                        onClick = {
+                            orderViewModel.setSelectedDiscount(discount)
+                            expandedDiscount = false
+                        },
+                        text = { Text(discount) }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // COMENTARIO
+        Text("Comentario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+        OutlinedTextField(
+            value = comment,
+            onValueChange = {
+                if (it.length <= 30) comment = it
+            },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Escribe un comentario") },
+            singleLine = true,
+            supportingText = {
+                Text("${comment.length}/30")
+            }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // TOTAL
+        Text("Total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+        OutlinedTextField(
+            value = String.format("$ %.2f", totalWithTax),
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                disabledTextColor = Color.Black,
+                disabledContainerColor = Color(0xFFF3F4F6)
+            )
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // BOTÓN FINAL
+        Button(
+            onClick = {
+                val creditText = selectedDiscount?.substringAfter("a ") ?: "15 días"
+
+                val order = OrderToSend(
+                    customer = selectedClient!!.Ruc.toString(),
+                    discountApplied = discountPercent,
+                    credit = "Contado $creditText",
+                    comment = comment,
+                    netTotal = totalNetoRounded,
+                    totalWithTax = totalWithTax,
+                    products = selectedProducts.map {
+                        ProductToSendJSON(
+                            id = it.id.toString(),
+                            quantity = it.quantity
+                        )
+                    }
+                )
+
+                orderViewModel.registerOrder(order)
+            },
+            enabled = isFormValid,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isFormValid) Color(0xFF005BBB) else Color.Gray,
+                contentColor = Color.White
+            )
+        ) {
+            Text("Generar Orden", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
+        }
+
+        if (registerResult.isNotBlank()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = registerResult,
+                color = if (registerResult.contains("Error", true)) Color.Red else Color(0xFF22C55E),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+
+
+
+@Composable
+fun ProductoCardToSend(
+    producto: Product,
+    pedidoViewModel: OrderViewModel,
+    productViewModel: ProductViewModel = hiltViewModel()
+) {
+    val productosSeleccionados by pedidoViewModel.productosSeleccionados.collectAsState()
+    val cantidad = productosSeleccionados[producto.id] ?: 0
+    val productos by productViewModel.products.collectAsState()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(8.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White) // Fondo blanco
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(12.dp)
+        ) {
+            AsyncImage(
+                model = producto.imgUrl,
+                contentDescription = producto.product_name,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Fit // Muestra la imagen completa sin recortarla
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(producto.product_name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("Disponibles: ${producto.stock}", fontSize = 12.sp)
+                Text("$ ${producto.price}", fontSize = 12.sp)
+                Text("${producto.reference}", fontSize = 12.sp)
+            }
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = {
+                        pedidoViewModel.disminuirCantidad(producto.id, productos)
+                    },
+                    enabled = cantidad > 0
+                ) {
+                    Icon(Icons.Default.Remove, contentDescription = "Quitar")
+                }
+
+                Text(
+                    "$cantidad",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(24.dp)
+                )
+
+                IconButton(
+                    onClick = {
+                        if (cantidad < producto.stock) {
+                            pedidoViewModel.aumentarCantidad(producto.id, producto, productos)
+                        }
+                    },
+                    enabled = cantidad < producto.stock
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Agregar")
+                }
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun ProductSelectorView(
+    viewModel: ProductViewModel = hiltViewModel(),
+    orderViewModel: OrderViewModel,
+    onCategoriaClick: (String) -> Unit,
+    onBack: () -> Unit
+) {
+    val productos by viewModel.products.collectAsState()
+    val productosPorCategoria = clasificarProductos(productos)
+    val total by orderViewModel.total.collectAsState()
+    val productosSeleccionados = orderViewModel.productosSeleccionados.collectAsState().value
+
+    Scaffold(
+        bottomBar = {
+            BarraInferiorPedido(
+                total = total.toFloat(),
+                productosSeleccionados = productosSeleccionados,
+                productos = productos,
+                onFinalizarClick = {
+                    val seleccion = orderViewModel.obtenerProductosParaEnviar(productos)
+                    Log.d("Pedido", seleccion.toString())
+                    onBack()
+                }
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(Color(0xFFF6F6F6)) // Fondo aplicado aquí
+        ) {
+            InventarioCategoriasScreen(
+                productosPorCategoria = productosPorCategoria,
+                onCategoriaClick = onCategoriaClick
+            )
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
 
 

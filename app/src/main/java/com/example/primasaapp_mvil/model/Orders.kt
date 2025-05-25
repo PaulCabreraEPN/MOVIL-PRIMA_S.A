@@ -1,5 +1,7 @@
 package com.example.primasaapp_mvil.model
 
+import com.google.gson.annotations.SerializedName
+
 data class OrdersResponse(
     val data: List<Order>
 )
@@ -40,9 +42,9 @@ data class ProductSelected(
 )
 
 data class ProductDetails(
-    val _id: String?,
+    val id: Int,
     val product_name: String?,
-    val measure: String?,  // antes era String
+    val reference: String?,  // antes era String
     val price: Double?
 )
 
@@ -54,4 +56,80 @@ data class SellerData(
     val email: String,
     val SalesCity: String,
     val PhoneNumber: Long,
+)
+
+data class OrderToSend(
+    val customer: String,
+    val products: List<ProductToSendJSON>,
+    val discountApplied: Int,
+    val netTotal: Double,
+    val totalWithTax: Double,
+    val comment: String,
+    val credit: String,
+)
+
+data class ProductToSendJSON(
+    @SerializedName("productId") val id: String,
+    val quantity: Int
+)
+
+data class OrderResponsetoSend(
+    val status: String,
+    val code: String,
+    val msg: String,
+    val data: OrderData,
+    val info: OrderInfo
+)
+
+data class OrderResponsetoID(
+    val status: String,
+    val code: String,
+    val msg: String,
+    val data: OrderDatabyID,
+)
+
+data class OrderDatabyID(
+    val _id: String,
+    val customer: CustomerData,
+    val products: List<ProductSelected>,
+    val discountApplied: Int,
+    val netTotal: Double,
+    val totalWithTax: Double,
+    val credit: String,
+    val status: String,
+    val comment: String,
+    val registrationDate: String,
+    val lastUpdate: String,
+    val seller: Seller
+)
+
+data class OrderData(
+    val _id: String,
+    val customer: Long,
+    val products: List<ProductItem>,
+    val discountApplied: Int,
+    val netTotal: Double,
+    val totalWithTax: Double,
+    val credit: String,
+    val status: String,
+    val comment: String,
+    val registrationDate: String,
+    val lastUpdate: String,
+    val seller: String
+)
+
+data class ProductItem(
+    val productId: String,
+    val quantity: Int
+)
+
+data class OrderInfo(
+    val stockUpdateDetails: StockUpdateDetails
+)
+
+data class StockUpdateDetails(
+    val attempted: Int,
+    val modified: Int,
+    val status: String,
+    val message: String
 )

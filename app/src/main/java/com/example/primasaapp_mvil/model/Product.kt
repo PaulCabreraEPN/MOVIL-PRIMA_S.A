@@ -5,7 +5,6 @@ data class ProductResponse(
     val code: String,
     val msg: String,
     val data: List<Product>,
-    val info: PageInfo
 )
 
 data class Product(
@@ -18,9 +17,11 @@ data class Product(
     val imgUrl: String
 )
 
-data class PageInfo(
-    val currentPage: Int,
-    val totalPages: Int,
-    val totalProducts: Int,
-    val limit: Int
+data class ProductToSend(
+    val id: Int,
+    val name: String,
+    val price: Double,
+    val quantity: Int
 )
+
+
