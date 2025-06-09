@@ -14,6 +14,9 @@ import com.example.primasaapp_mvil.model.Product
 import com.example.primasaapp_mvil.model.ProductToSend
 import com.example.primasaapp_mvil.model.ProductToSendJSON
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,7 +27,7 @@ import javax.inject.Inject
 @HiltViewModel
 class OrderViewModel @Inject constructor(
     private val repository: AuthRepository,
-    private val dataStoreManager: DataStoreManager
+    private val dataStoreManager: DataStoreManager,
 ) : ViewModel() {
 
     private val _orders = MutableStateFlow<List<Order>>(emptyList())
@@ -36,7 +39,8 @@ class OrderViewModel @Inject constructor(
     private val _registerResult = MutableStateFlow("")
     val registerResult: StateFlow<String> = _registerResult.asStateFlow()
 
-    private val _productosSeleccionados = MutableStateFlow<Map<Int, Int>>(emptyMap()) // id -> cantidad
+    private val _productosSeleccionados =
+        MutableStateFlow<Map<Int, Int>>(emptyMap()) // id -> cantidad
     val productosSeleccionados: StateFlow<Map<Int, Int>> = _productosSeleccionados
 
     private val _productosSeleccionadosData = mutableMapOf<Int, Product>() // id -> producto
@@ -47,8 +51,30 @@ class OrderViewModel @Inject constructor(
     private val _selectedDiscount = MutableStateFlow<String?>(null)
     val selectedDiscount: StateFlow<String?> = _selectedDiscount
 
+    private val _selectedID = MutableStateFlow<String?>(null)
+    val selectedID: StateFlow<String?> = _selectedID
+
+    private val _isRegistering = MutableStateFlow(false)
+    val isRegistering: StateFlow<Boolean> = _isRegistering.asStateFlow()
+
+    private val _isEdites = MutableStateFlow(false)
+    val isEdites: StateFlow<Boolean> = _isEdites
+
+
+    private val _comentario = MutableStateFlow("")
+    val comentario: StateFlow<String> = _comentario
+
+    fun setComentario(value: String) {
+        _comentario.value = value
+    }
+
     private val _total = MutableStateFlow(0.0)
     val total: StateFlow<Double> get() = _total
+
+    private val _successMessage = MutableStateFlow<String?>(null)
+    val successMessage: StateFlow<String?> = _successMessage
+
+
 
     init {
         fetchOrders()
@@ -62,7 +88,9 @@ class OrderViewModel @Inject constructor(
             if (!token.isNullOrBlank() && email.isNotBlank()) {
                 try {
                     val orders = repository.getOrders(token)
-                    _orders.value = orders.filter { it.seller.email == email }
+                    val filtered = orders.filter { it.seller.email == email }
+                    _orders.value = filtered
+                    _successMessage.value = "Órdenes obtenidas con éxito"
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -70,42 +98,81 @@ class OrderViewModel @Inject constructor(
         }
     }
 
+
     fun registerOrder(order: OrderToSend) {
         viewModelScope.launch {
+            _isRegistering.value = true
             try {
                 val token = dataStoreManager.tokenFlow.first()
                 if (!token.isNullOrBlank()) {
                     val response = repository.registrerOrder(token, order)
 
                     if (response.isSuccessful) {
-                        val message = response.body()?.msg ?: "Orden registrada sin mensaje."
-                        _registerResult.value = message
+                        _registerResult.value =
+                            response.body()?.msg ?: "Orden registrada exitosamente."
+
                     } else {
-                        val errorCode = response.code()
                         val errorBody = response.errorBody()?.string()
-                        val fullError = """
-                        Error al registrar orden.
-                        Código: $errorCode
-                        Cuerpo del error: ${errorBody ?: "Sin detalles"}
-                    """.trimIndent()
-                        _registerResult.value = fullError
-                        println(fullError)
+                        _registerResult.value =
+                            "Error al registrar orden. Código: ${response.code()}. Detalle: $errorBody"
+                        println("Error al registrar orden: $errorBody")
                     }
                 } else {
                     _registerResult.value = "Token no disponible."
                 }
             } catch (e: Exception) {
-                val detailedError = """
-                Excepción al registrar orden.
-                Mensaje: ${e.message}
-                Tipo: ${e::class.simpleName}
-            """.trimIndent()
-                _registerResult.value = detailedError
-                e.printStackTrace()
+                _registerResult.value = "Excepción al registrar orden: ${e.message}"
+            } finally {
+                _isRegistering.value = false
             }
-            println("Resultado: ${_registerResult.value}")
         }
     }
+
+    fun updateOrder(id: String, order: OrderToSend) {
+
+        viewModelScope.launch {
+            _isRegistering.value = true
+            try {
+                val token = dataStoreManager.tokenFlow.first()
+                if (!token.isNullOrBlank()) {
+                    val response = repository.updateOrder(id, token, order)
+                    println(response)
+
+                    if (response.isSuccessful) {
+                        _registerResult.value =
+                            response.body()?.msg ?: "Orden actualizada exitosamente."
+                            _isEdites.value = false
+
+                    } else {
+                        val errorBody = response.errorBody()?.string()
+                        _registerResult.value =
+                            "Error al actualizar orden. Código: ${response.code()}. Detalle: $errorBody"
+                        println("Error al actualizar orden: $errorBody")
+                    }
+                } else {
+                    _registerResult.value = "Token no disponible."
+                }
+            } catch (e: Exception) {
+                _registerResult.value = "Excepción al actualizar orden: ${e.message}"
+            } finally {
+                _isRegistering.value = false
+            }
+        }
+    }
+
+
+    fun clearOrderForm() {
+        println("Limpiando")
+        _selectedClient.value = null
+        _selectedDiscount.value = null
+        _registerResult.value = ""
+        _isRegistering.value = false
+        limpiarProductos()
+        _selectedOrder.value = null
+        _comentario.value = ""
+
+    }
+
 
     fun aumentarCantidad(id: Int, producto: Product, productos: List<Product>) {
         val nuevaCantidad = (_productosSeleccionados.value[id] ?: 0) + 1
@@ -155,30 +222,22 @@ class OrderViewModel @Inject constructor(
     }
 
     fun fetchOrderById(id: String) {
-        viewModelScope.launch {
+        viewModelScope.launch{
             try {
                 val token = dataStoreManager.tokenFlow.first()
                 if (!token.isNullOrBlank()) {
                     val response = repository.getOrderById(id, token)
-                    println("Buscando orden con ID: $id")
-
                     if (response.isSuccessful) {
-                        val orderResponse = response.body()
-                        if (orderResponse != null) {
-                            _selectedOrder.value = orderResponse.data
-                            println("Orden obtenida: ${orderResponse.data}")
-                        } else {
-                            println("Orden no encontrada o sin datos.")
+                        response.body()?.let {
+                            _selectedOrder.value = it.data
+                            println("Orden obtenida: ${it.data}")
                         }
                     } else {
-                        println("Error al obtener orden: ${response.code()} - ${response.message()}")
+                        println("Error en la respuesta: ${response.code()} ${response.message()}")
                     }
-                } else {
-                    println("Token no disponible.")
                 }
             } catch (e: Exception) {
-                println("Excepción al obtener orden por ID: ${e.message}")
-                e.printStackTrace()
+                println("Excepción: ${e.message}")
             }
         }
     }
@@ -191,12 +250,88 @@ class OrderViewModel @Inject constructor(
         _selectedDiscount.value = discount
     }
 
+    fun setSelectedId(id: String) {
+        _selectedID.value = id
+    }
+
 
     fun limpiarProductos() {
         _productosSeleccionados.value = emptyMap()
         _productosSeleccionadosData.clear()
         _total.value = 0.0
     }
+
+    fun setRegister(){
+        _isEdites.value = false
+        println("Se cambia a registro")
+        clearOrderForm()
+    }
+
+    fun setUpdater(){
+        _isEdites.value = true
+        println("Se cambia a Actualizar")
+    }
+
+    fun precargarDatosDeOrden(order: OrderDatabyID) {
+
+        // Cliente
+        _selectedClient.value = Client(
+            id = order.customer._id,
+            Name = order.customer.Name,
+            ComercialName = order.customer.ComercialName,
+            Ruc = order.customer.Ruc,
+            Address = order.customer.Address,
+            telephone = order.customer.telephone,
+            email = order.customer.email,
+            state = order.customer.state
+        )
+
+        val opcionSeleccionada = obtenerOpcionDescuento(order.discountApplied, order.credit)
+
+        _selectedDiscount.value = opcionSeleccionada
+
+        // Productos
+        val productosMap = mutableMapOf<Int, Int>()
+        _productosSeleccionadosData.clear()
+
+        order.products.forEach { productSelected ->
+            val id = productSelected.productDetails.id
+            val cantidad = productSelected.quantity
+            productosMap[id] = cantidad
+
+            _productosSeleccionadosData[id] = Product(
+                id = id,
+                product_name = productSelected.productDetails.product_name ?: "",
+                price = productSelected.productDetails.price ?: 0.0,
+                reference = productSelected.productDetails.reference ?: "",
+                description = "",
+                stock = 0,
+                imgUrl = ""
+            )
+        }
+
+        _productosSeleccionados.value = productosMap
+
+        _comentario.value = order.comment
+
+
+        // Total
+        _total.value = order.totalWithTax
+    }
+
+    fun obtenerOpcionDescuento(discountApplied: Int, credit: String): String? {
+        val dias = Regex("""\d+""").find(credit)?.value ?: return null
+
+        return when {
+            credit.contains("Contado", ignoreCase = true) -> "Contado $dias día${if (dias != "1") "s" else ""} ${discountApplied}% Desc."
+            credit.contains("Crédito", ignoreCase = true) -> "Crédito $dias día${if (dias != "1") "s" else ""} ${discountApplied}% Desc."
+            else -> null
+        }
+    }
+
+
+
+
 }
 
 

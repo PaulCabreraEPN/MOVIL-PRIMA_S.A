@@ -43,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.example.primasaapp_mvil.R
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 // Navegación principal
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -86,10 +87,12 @@ class LoginActivity : ComponentActivity() {
 @Composable
 fun RecoveryFlow(parentNavController: NavController) {
     val navController = rememberNavController()
+    val PasswordViewlModel: PasswordViewlModel = hiltViewModel()
 
     NavHost(navController, startDestination = "step_email") {
         composable("step_email") {
             StepEmailScreen(
+                viewModel = PasswordViewlModel,
                 onNext = { navController.navigate("step_token") },
                 onBack = { parentNavController.popBackStack() } // volver a login
             )
@@ -97,6 +100,7 @@ fun RecoveryFlow(parentNavController: NavController) {
 
         composable("step_token") {
             StepTokenScreen(
+                viewModel = PasswordViewlModel,
                 onNext = { navController.navigate("step_verify") },
                 onBack = { navController.popBackStack() } // vuelve a email
             )
@@ -104,6 +108,7 @@ fun RecoveryFlow(parentNavController: NavController) {
 
         composable("step_verify") {
             ChangePassScreen(
+                viewModel = PasswordViewlModel,
                 onNext = { navController.navigate("step_success") },
                 onBack = { navController.popBackStack() } // vuelve a token
             )
@@ -135,7 +140,6 @@ fun LoginScreen(navController: NavController, viewModel: LoginViewModel = hiltVi
             context.startActivity(Intent(context, MainScreenActivity::class.java))
         }
     }
-
 
     Column(
         modifier = Modifier
@@ -278,7 +282,7 @@ fun LoginScreenPreview() {
 
 
 @Composable
-fun StepEmailScreen(viewModel: PasswordViewlModel = hiltViewModel(), onNext: () -> Unit, onBack: () -> Unit) {
+fun StepEmailScreen(viewModel: PasswordViewlModel, onNext: () -> Unit, onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -480,7 +484,20 @@ fun StepTokenScreen(
 
         Button(
             onClick = {
-
+                viewModel.verifyToken(
+                    viewModel.token,
+                    onSuccess = { msg ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(msg)
+                            onNext()
+                        }
+                    },
+                    onError = { errorMsg ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(errorMsg)
+                        }
+                    }
+                )
             },
             modifier = Modifier
                 .width(206.dp)
@@ -516,11 +533,26 @@ fun StepTokenScreen(
 
 
 @Composable
-fun ChangePassScreen(onNext: () -> Unit, onBack: () -> Unit) {
+fun ChangePassScreen(
+    viewModel: PasswordViewlModel,
+    onNext: () -> Unit,
+    onBack: () -> Unit
+) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordError by remember { mutableStateOf(false) }
+    var passwordErrorMsg by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Validaciones
+    val passwordRegex = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$")
+    val isPasswordStrong = passwordRegex.matches(password)
+    val doPasswordsMatch = password == confirmPassword
+    val areFieldsNotEmpty = password.isNotBlank() && confirmPassword.isNotBlank()
+    val isFormValid = isPasswordStrong && doPasswordsMatch && areFieldsNotEmpty
 
     Column(
         modifier = Modifier
@@ -569,7 +601,6 @@ fun ChangePassScreen(onNext: () -> Unit, onBack: () -> Unit) {
             text = "Ingrese su nueva contraseña",
             fontSize = 16.sp,
             color = Color.Black,
-            textAlign = TextAlign.Start,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp)
@@ -577,11 +608,16 @@ fun ChangePassScreen(onNext: () -> Unit, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Campo contraseña
         TextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = {
+                password = it
+                passwordErrorMsg = if (!passwordRegex.matches(it)) {
+                    "Debe tener al menos 8 caracteres, mayúscula, minúscula, número y símbolo"
+                } else ""
+            },
             label = { Text("Contraseña") },
+            isError = passwordErrorMsg.isNotEmpty(),
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 val icon = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
@@ -599,13 +635,23 @@ fun ChangePassScreen(onNext: () -> Unit, onBack: () -> Unit) {
             )
         )
 
+        if (passwordErrorMsg.isNotEmpty()) {
+            Text(
+                text = passwordErrorMsg,
+                color = Color.Red,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .padding(start = 32.dp, top = 4.dp)
+                    .fillMaxWidth(0.8f)
+            )
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             text = "Confirme su nueva contraseña",
             fontSize = 16.sp,
             color = Color.Black,
-            textAlign = TextAlign.Start,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 32.dp)
@@ -613,11 +659,14 @@ fun ChangePassScreen(onNext: () -> Unit, onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Campo confirmar contraseña
         TextField(
             value = confirmPassword,
-            onValueChange = { confirmPassword = it },
+            onValueChange = {
+                confirmPassword = it
+                confirmPasswordError = password != it
+            },
             label = { Text("Confirmar contraseña") },
+            isError = confirmPasswordError,
             visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 val icon = if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
@@ -635,20 +684,39 @@ fun ChangePassScreen(onNext: () -> Unit, onBack: () -> Unit) {
             )
         )
 
+        if (confirmPasswordError) {
+            Text(
+                text = "Las contraseñas no coinciden",
+                color = Color.Red,
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .padding(start = 32.dp, top = 4.dp)
+                    .fillMaxWidth(0.8f)
+            )
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Botón de siguiente
         Button(
             onClick = {
-                // Aquí podrías validar las contraseñas
-                onNext()
+                viewModel.newPassword = password
+                viewModel.confirmPassword = confirmPassword
+                viewModel.resetPasswordWithToken(
+                    onSuccess = onNext,
+                    onError = { errorMsg ->
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(errorMsg)
+                        }
+                    }
+                )
             },
+            enabled = isFormValid,
             modifier = Modifier
                 .width(206.dp)
                 .height(48.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1E519D),
+                containerColor = if (isFormValid) Color(0xFF1E519D) else Color.Gray,
                 contentColor = Color.White
             )
         ) {
@@ -754,14 +822,7 @@ fun SuccesedScreen(onNext: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PreviewSuccesesScreen() {
-    ChangePassScreen(
-        onNext = { /* Lógica de navegación */ },
-        onBack = {}
-    )
-}
+
 
 
 

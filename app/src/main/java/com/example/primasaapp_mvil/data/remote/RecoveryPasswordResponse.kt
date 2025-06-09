@@ -16,3 +16,8 @@ data class EmailDetails(
     val message: String
 )
 
+data class passwordReset(
+    val paswword: String,
+    val confirmpass: String
+)
+

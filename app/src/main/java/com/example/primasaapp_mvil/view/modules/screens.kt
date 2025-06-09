@@ -1,7 +1,9 @@
 package com.example.primasaapp_mvil.view.modules
 
+import android.os.Build
 import android.util.Log
 import android.util.Patterns
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -69,17 +71,21 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavHostController
 import com.example.primasaapp_mvil.model.ClientRequest
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.input.KeyboardType
 import com.example.primasaapp_mvil.model.ClientUpdate
+import com.example.primasaapp_mvil.model.CustomerData
 import com.example.primasaapp_mvil.model.OrderToSend
 import com.example.primasaapp_mvil.model.ProductToSendJSON
 import com.example.primasaapp_mvil.view.components.BarraInferiorPedido
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 //DASHBOARD
 @Composable
@@ -89,9 +95,10 @@ fun HomeScreen(
     userViewModel: UserViewModel = hiltViewModel()
 ) {
     val username by userViewModel.username.collectAsState()
-    val name by userViewModel.userName.collectAsState()
+    val name by userViewModel.Name.collectAsState()
     val salesCity by userViewModel.sales_CITY.collectAsState()
     val orders by orderViewModel.orders.collectAsState()
+    val cedula by userViewModel.cedula.collectAsState()
 
     val totalOrders = orders.size
     val totalGeneral = orders.sumOf { it.totalWithTax }
@@ -112,7 +119,7 @@ fun HomeScreen(
         )
 
         Spacer(modifier = Modifier.height(8.dp))
-        PerfilCard(username = username, name = name, city = salesCity)
+        PerfilCard(username = username, name = name, city = salesCity, cedula = cedula as Int)
 
         Spacer(modifier = Modifier.height(20.dp))
 
@@ -144,7 +151,7 @@ fun HomeScreen(
 
 
 @Composable
-fun PerfilCard(username: String, name: String, city: String) {
+fun PerfilCard(username: String, name: String, city: String, cedula: Int) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -172,7 +179,7 @@ fun PerfilCard(username: String, name: String, city: String) {
                 }
             }
             Text(text = name, fontSize = 14.sp)
-            Text(text = "CI: XXXXX4321", fontSize = 13.sp)
+            Text(text = "CI: XXXXXXX${cedula.toString().takeLast(3)}", fontSize = 13.sp)
             Text(
                 text = "Ciudad de ventas: $city",
                 fontSize = 13.sp,
@@ -871,6 +878,7 @@ fun ClientDetailScreen(
 ) {
     val client by clientViewModel.selectedClient.collectAsState()
     val registerResult by clientViewModel.registerResult.collectAsState()
+    val isLoadingClient by clientViewModel.isLoadingClient.collectAsState()
     val isLoading by clientViewModel.isLoading.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -927,7 +935,7 @@ fun ClientDetailScreen(
         containerColor = Color(0xFFF6F6F6)
     ) { padding ->
 
-        if (isLoading || client == null) {
+        if (isLoadingClient || client == null) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -939,16 +947,16 @@ fun ClientDetailScreen(
         } else {
             val currentClient = client!!
 
-            if (!hasInitialized) {
-                telephone = currentClient.telephone.toString()
+
+                telephone = currentClient.telephone
                 email = currentClient.email ?: ""
                 address = currentClient.Address ?: ""
                 state = currentClient.state ?: ""
                 hasInitialized = true
-            }
+
 
             val name = currentClient.Name ?: ""
-            val ruc = currentClient.Ruc.toString()
+            val ruc = currentClient.Ruc
             val comercialName = currentClient.ComercialName ?: ""
 
             Column(
@@ -1161,7 +1169,6 @@ fun ClientDetailScreen(
         }
     }
 }
-
 
 
 @Composable
@@ -1448,7 +1455,7 @@ fun CustomTextField(
 @Composable
 fun OrdersScreen(
     navController: NavHostController,
-    orderViewModel: OrderViewModel = hiltViewModel()
+    orderViewModel: OrderViewModel
 ) {
     val orders by orderViewModel.orders.collectAsState()
 
@@ -1458,7 +1465,9 @@ fun OrdersScreen(
             .background(Color(0xFFF6F6F6)), // Color de fondo de toda la pantalla
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { navController.navigate("resgisterOrder") },
+                onClick = {
+                    orderViewModel.clearOrderForm()
+                    navController.navigate("orderEdit/0000") },
                 containerColor = Color(0xFF005BBB),
                 contentColor = Color.White,
                 shape = CircleShape
@@ -1612,15 +1621,26 @@ fun ProductItem(product: ProductSelected) {
     }
 }
 
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+fun formatProformaDate(dateString: String): String {
+    val zonedDateTime = ZonedDateTime.parse(dateString)
+    val formatter = DateTimeFormatter.ofPattern("d 'de' MMMM 'de' yyyy, h:mm a", Locale("es", "ES"))
+    return zonedDateTime.format(formatter)
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun OrderDetailScreen(
     orderId: String,
     orderViewModel: OrderViewModel,
+    navController: NavController,
     onBack: () -> Unit
 ) {
     val order by orderViewModel.selectedOrder.collectAsState()
 
-    println(order)
+
     LaunchedEffect(orderId) {
         orderViewModel.fetchOrderById(orderId)
     }
@@ -1628,32 +1648,25 @@ fun OrderDetailScreen(
     Scaffold(
         topBar = {
             Surface(
-                color = MaterialTheme.colorScheme.primaryContainer,
-                shadowElevation = 3.dp
+                color = Color(0xFFF5F5F5),
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp)
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .background(Color(0xFFF5F5F5)),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Volver",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-
                     Text(
                         text = "Proforma",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF005BBB)
+                        )
                     )
-
-                    IconButton(onClick = { /* Acción editar */ }) {
+                    IconButton(onClick = { navController.navigate("orderEdit/${orderId}") }) {
                         Icon(
                             imageVector = Icons.Filled.Edit,
                             contentDescription = "Editar",
@@ -1683,6 +1696,18 @@ fun OrderDetailScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
 
+                        val formattedDate = formatProformaDate(order!!.createdAt.toString())
+
+                        Text(
+                            text = "Fecha de emisión: $formattedDate",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         // ID
                         val orderIdSafe = order!!._id.takeLast(5)
                         Text(
@@ -1693,16 +1718,7 @@ fun OrderDetailScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Información del cliente
-                        order!!.customer.let { customer ->
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                InfoRow("Cliente:", customer.Name)
-                                InfoRow("RUC:", customer.Ruc.toString())
-                                InfoRow("Dirección:", customer.Address)
-                                InfoRow("Teléfono:", customer.telephone.toString())
-                                InfoRow("Email:", customer.email)
-                            }
-                        }
+                        ClientInfoSection(order!!.customer)
 
                         Spacer(modifier = Modifier.height(16.dp))
 
@@ -1712,7 +1728,7 @@ fun OrderDetailScreen(
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
                         if (order!!.products.isEmpty()) {
@@ -1720,7 +1736,7 @@ fun OrderDetailScreen(
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 order!!.products.forEach { product ->
-                                    ProductItemRow(product)
+                                    ProductItemRow(product, order!!.discountApplied )
                                 }
                             }
                         }
@@ -1741,6 +1757,19 @@ fun OrderDetailScreen(
                             netTotal = order!!.netTotal,
                             totalWithTax = order!!.totalWithTax
                         )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = "Condición y forma de pago: ${order!!.credit}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            textAlign = TextAlign.Center
+                        )
+
                     }
                 }
             }
@@ -1748,6 +1777,45 @@ fun OrderDetailScreen(
     }
 }
 
+@Composable
+fun ClientInfoSection(customer: CustomerData) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                color = Color.LightGray.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(8.dp)
+            )
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ClientInfoRow("Cliente:", customer.Name)
+        ClientInfoRow("RUC:", customer.Ruc.toString())
+        ClientInfoRow("Dirección:", customer.Address)
+        ClientInfoRow("Teléfono:", customer.telephone.toString())
+        ClientInfoRow("Email:", customer.email)
+    }
+}
+
+@Composable
+fun ClientInfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.End
+        )
+    }
+}
 
 
 
@@ -1771,36 +1839,49 @@ private fun InfoRow(label: String, value: String) {
 }
 
 @Composable
-private fun ProductItemRow(product: ProductSelected) {
+private fun ProductItemRow(product: ProductSelected, discountPercent: Int) {
     val details = product.productDetails
     val quantity = product.quantity
     val name = details.product_name ?: "Sin nombre"
     val reference = details.reference ?: ""
     val unitPrice = details.price ?: 0.0
     val total = unitPrice * quantity
+    val discountAmount = discountPercent / 100.0
 
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                Text(
+                    text = "${product.quantity} X ${name}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "$${"%.2f".format(unitPrice)} X ${discountPercent}%  (${"%.2f".format(unitPrice*discountAmount*product.quantity)})",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    modifier = Modifier.padding(start = 16.dp)
+                )
+            }
+
             Text(
-                text = "$quantity X $name",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = "$${"%.2f".format(total)}",
+                text = "$${"%.2f".format((quantity * unitPrice)-(unitPrice  *discountAmount * quantity))}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
-        Text(
-            text = "$${"%.2f".format(unitPrice)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            modifier = Modifier.padding(start = 24.dp)
-        )
+        Divider(modifier = Modifier.padding(vertical = 4.dp))
     }
 }
 
@@ -1878,15 +1959,93 @@ private fun SummaryRowStyled(
 }
 
 @Composable
+fun EditOrder(
+    orderId: String,
+    orderViewModel: OrderViewModel,
+    navController: NavController,
+    onBack: () -> Unit
+) {
+    val selectedOrder by orderViewModel.selectedOrder.collectAsState()
+    val isRegistering by orderViewModel.isRegistering.collectAsState()
+    val context = LocalContext.current
+    val registerResult by orderViewModel.registerResult.collectAsState()
+
+    // Buscar la orden solo una vez
+    LaunchedEffect(orderId) {
+        orderViewModel.fetchOrderById(orderId)
+    }
+
+    // Precargar datos cuando llega la orden
+    LaunchedEffect(selectedOrder) {
+        selectedOrder?.let {
+            orderViewModel.precargarDatosDeOrden(it)
+        }
+    }
+
+    // Mostrar resultado si se registra/actualiza
+    LaunchedEffect(registerResult) {
+        if (registerResult.isNotBlank()) {
+            if (registerResult.contains("exitosamente", true)) {
+                navController.popBackStack() // o navega a donde necesites
+            }
+        }
+    }
+
+    if (orderId == "0000"){
+        orderViewModel.setRegister()
+        orderViewModel.clearOrderForm()
+        RegisterOrderScreen(
+            orderId = orderId,
+            orderViewModel = orderViewModel,
+            navController = navController,
+            onBack = onBack,)
+    }else(
+            if (selectedOrder == null) {
+                // Loading UI mientras se carga la orden
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+
+            } else {
+                orderViewModel.setUpdater()
+                orderViewModel.setSelectedId(orderId)
+                RegisterOrderScreen(
+                    orderId = orderId,
+                    orderViewModel = orderViewModel,
+                    navController = navController,
+                    onBack = onBack,
+
+                    )
+            }
+    )
+
+
+
+}
+
+
+
+@Composable
 fun RegisterOrderScreen(
+    orderId: String,
     navController: NavController,
     viewModel: ProductViewModel = hiltViewModel(),
     orderViewModel: OrderViewModel,
     clientViewModel: ClientViewModel = hiltViewModel(),
     onBack: () -> Unit
 ) {
+
+    val isEditMode = orderViewModel.isEdites.collectAsState()
+
+    val orderID by orderViewModel.selectedID.collectAsState()
+
+    println(isEditMode.value)
+
     val productos by viewModel.products.collectAsState()
     val clients by clientViewModel.clients.collectAsState()
+    val isRegistering by orderViewModel.isRegistering.collectAsState()
+
+    val snackbarHostState = remember { SnackbarHostState() }
     val registerResult by orderViewModel.registerResult.collectAsState()
 
     var expandedClient by remember { mutableStateOf(false) }
@@ -1895,251 +2054,387 @@ fun RegisterOrderScreen(
 
     val selectedProducts = orderViewModel.obtenerProductosParaEnviar(productos)
 
+
     var expandedDiscount by remember { mutableStateOf(false) }
     val discountOptions = listOf(
-        "20 % de descuento a 8 días",
-        "20 % de descuento a 15 días",
-        "20 % de descuento a 30 días",
-        "15 % de descuento a 8 días",
-        "15 % de descuento a 15 días",
-        "15 % de descuento a 30 días"
+        "Contado 1 día 20% Desc.",
+        "Crédito 1 día 15% Desc.",
+        "Crédito 30 días 15% Desc.",
     )
 
-    var comment by remember { mutableStateOf("") }
+    val comment = orderViewModel.comentario.collectAsState().value
 
-    val subtotal = selectedProducts.sumOf { it.price * it.quantity }
 
     val discountPercent = when {
-        selectedDiscount?.startsWith("20") == true -> 20
-        selectedDiscount?.startsWith("15") == true -> 15
-        else -> 10
+        selectedDiscount?.contains("20%") == true -> 20
+        selectedDiscount?.contains("15%") == true -> 15
+        else -> 0
     }
 
-    val discountAmount = subtotal * discountPercent / 100
-    val totalWithDiscount = subtotal - discountAmount
-    val totalNetoRounded = BigDecimal(totalWithDiscount).setScale(2, RoundingMode.HALF_UP).toDouble()
-    val totalWithTax = BigDecimal(totalWithDiscount * 1.12).setScale(2, RoundingMode.HALF_UP).toDouble()
+    val discountAmount = discountPercent / 100.0
 
-    val isFormValid = selectedClient != null && selectedDiscount != null && selectedProducts.isNotEmpty()
+    val totalNetoRounded = selectedProducts.sumOf { product ->
+        val price = BigDecimal.valueOf(product.price)
+        val quantity = BigDecimal(product.quantity)
+        val discountRate = BigDecimal.valueOf(discountAmount)
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF6F6F6))
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Registrar Pedido",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF005BBB)
+        val discountedPrice = price.multiply(BigDecimal.ONE.subtract(discountRate))
+        discountedPrice.multiply(quantity)
+    }.setScale(2, RoundingMode.HALF_UP)
+
+
+
+    val taxRate = BigDecimal("1.15") // 15% impuesto
+    val totalWithTax = totalNetoRounded.multiply(taxRate).setScale(2, RoundingMode.HALF_UP)
+
+
+    val isCommentValid = comment.length >= 10 || comment == "Sin novedades"
+    val isFormValid = selectedClient != null && selectedDiscount != null && selectedProducts.isNotEmpty() && isCommentValid
+
+    LaunchedEffect(registerResult) {
+        if (registerResult.isNotBlank()) {
+            val result = snackbarHostState.showSnackbar(
+                message = registerResult,
+                withDismissAction = true,
+                duration = SnackbarDuration.Short
             )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // CLIENTE
-        Text("Cliente", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-        Box(modifier = Modifier.fillMaxWidth()) {
-            OutlinedTextField(
-                value = selectedClient?.ComercialName ?: "Seleccionar",
-                onValueChange = {},
-                readOnly = true,
-                enabled = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expandedClient = true },
-                trailingIcon = {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
-                }
-            )
-
-            DropdownMenu(
-                expanded = expandedClient,
-                onDismissRequest = { expandedClient = false },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                clients.forEach { client ->
-                    DropdownMenuItem(
-                        onClick = {
-                            orderViewModel.setSelectedClient(client)
-                            expandedClient = false
-                        },
-                        text = {
-                            Column {
-                                Text(client.ComercialName)
-                                Text("RUC: ${client.Ruc}", style = MaterialTheme.typography.bodySmall)
-                            }
-                        }
-                    )
-                }
+            if (result == SnackbarResult.Dismissed || result == SnackbarResult.ActionPerformed) {
+                orderViewModel.clearOrderForm()
+                navController.navigate("orders")
             }
         }
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // PRODUCTOS
-        Text("Productos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-        if (selectedProducts.isEmpty()) {
-            Button(
-                onClick = { navController.navigate("productSelecter") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF60A5FA))
-            ) {
-                Text("Seleccionar productos")
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                val isError = data.visuals.message.contains("error", ignoreCase = true)
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (isError) Color.Red else Color(0xFF005BBB),
+                    contentColor = Color.White
+                )
             }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                selectedProducts.forEach { product ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("${product.name} x${product.quantity}")
-                        Text("$${"%.2f".format(product.price * product.quantity)}")
+        },
+        containerColor = Color(0xFFF6F6F6)
+    ) { padding ->
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF6F6F6))
+                .verticalScroll(rememberScrollState())
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            if(isEditMode.value){
+                Text(
+                    text = "Actualizar Pedido",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF005BBB)
+                    )
+                )
+            }else{
+                Text(
+                    text = "Registrar Pedido",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF005BBB)
+                    )
+                )
+            }
+
+
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // CLIENTE
+            Text("Cliente", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = selectedClient?.ComercialName ?: "Seleccionar",
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedClient = true },
+                    trailingIcon = {
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = Color.Black,
+                        disabledContainerColor = Color(0xFFF3F4F6)
+                    )
+                )
+
+                DropdownMenu(
+                    expanded = expandedClient,
+                    onDismissRequest = { expandedClient = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                ) {
+                    clients.sortedBy { it.ComercialName }.forEach { client ->
+                        DropdownMenuItem(
+                            onClick = {
+                                orderViewModel.setSelectedClient(client)
+                                expandedClient = false
+                            },
+                            text = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Text(client.ComercialName)
+                                    Text("RUC: ${client.Ruc}", style = MaterialTheme.typography.bodySmall)
+                                    Divider(modifier = Modifier.padding(top = 8.dp))
+                                }
+                            }
+                        )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
+            // PRODUCTOS
+            Text("Productos", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
+            if (selectedProducts.isEmpty()) {
                 Button(
                     onClick = { navController.navigate("productSelecter") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF60A5FA))
                 ) {
-                    Text("Cambiar productos")
+                    Text("Seleccionar productos")
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    selectedProducts.forEach { product ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = "${product.quantity} X ${product.name}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "$${"%.2f".format(product.price)} X ${discountPercent}%  (${"%.2f".format(product.price*discountAmount*product.quantity)})",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                    modifier = Modifier.padding(start = 16.dp)
+                                )
+                            }
+
+                            Text(
+                                text = "$${"%.2f".format((product.quantity * product.price)-(product.price*discountAmount*product.quantity))}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Button(
+                        onClick = { navController.navigate("productSelecter") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF60A5FA))
+                    ) {
+                        Text("Cambiar productos")
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // DESCUENTO
-        Text("Descuento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            // DESCUENTO
+            Text("Descuento", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 
-        Box(modifier = Modifier.fillMaxWidth()) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = selectedDiscount ?: "Seleccionar descuento",
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { expandedDiscount = true },
+                    trailingIcon = {
+                        Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = Color.Black,
+                        disabledContainerColor = Color(0xFFF3F4F6)
+                    )
+                )
+
+                DropdownMenu(
+                    expanded = expandedDiscount,
+                    onDismissRequest = { expandedDiscount = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                ) {
+                    discountOptions.forEach { discount ->
+                        DropdownMenuItem(
+                            onClick = {
+                                orderViewModel.setSelectedDiscount(discount)
+                                expandedDiscount = false
+                            },
+                            text = { Text(discount) }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // COMENTARIO
+            Text("Comentario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+
             OutlinedTextField(
-                value = selectedDiscount ?: "Seleccionar descuento",
-                onValueChange = {},
-                readOnly = true,
-                enabled = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expandedDiscount = true },
-                trailingIcon = {
-                    Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                value = comment,
+                onValueChange = {
+                    if (it.length <= 30) {
+                        orderViewModel.setComentario(it)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Escribe un comentario") },
+                singleLine = true,
+                supportingText = {
+                    Text("${comment.length}/30")
                 }
             )
 
-            DropdownMenu(
-                expanded = expandedDiscount,
-                onDismissRequest = { expandedDiscount = false },
-                modifier = Modifier.fillMaxWidth()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // TOTAL
+            Text("Subtotal", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = "$ ${totalNetoRounded.toPlainString()}",
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = Color.Black,
+                    disabledContainerColor = Color(0xFFF3F4F6)
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Total con IVA", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            OutlinedTextField(
+                value = "$ ${totalWithTax.toPlainString()}",
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    disabledTextColor = Color.Black,
+                    disabledContainerColor = Color(0xFFF3F4F6)
+                )
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // BOTÓN FINAL
+            Button(
+                onClick = {
+                    val parsedDiscount = selectedDiscount?.let { parseDiscountOption(it) }
+
+                    val order = OrderToSend(
+                        customer = selectedClient!!.Ruc.toString(),
+                        discountApplied = parsedDiscount?.discountApplied ?: 0,
+                        credit = parsedDiscount?.credit ?: "",
+                        comment = comment,
+                        netTotal = totalNetoRounded,
+                        totalWithTax = totalWithTax,
+                        products = selectedProducts.map {
+                            ProductToSendJSON(
+                                id = it.id.toString(),
+                                quantity = it.quantity
+                            )
+                        }
+                    )
+
+                    println(order)
+
+                    if (isEditMode.value){
+                        orderViewModel.updateOrder(orderID.toString(), order)
+                    }else{
+                        orderViewModel.registerOrder(order)
+                    }
+
+
+                },
+                enabled = isFormValid && !isRegistering,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isFormValid) Color(0xFF005BBB) else Color.Gray,
+                    contentColor = Color.White
+                )
             ) {
-                discountOptions.forEach { discount ->
-                    DropdownMenuItem(
-                        onClick = {
-                            orderViewModel.setSelectedDiscount(discount)
-                            expandedDiscount = false
-                        },
-                        text = { Text(discount) }
+                if (isRegistering) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Text(
+                        "Generar Orden",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // COMENTARIO
-        Text("Comentario", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-        OutlinedTextField(
-            value = comment,
-            onValueChange = {
-                if (it.length <= 30) comment = it
-            },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Escribe un comentario") },
-            singleLine = true,
-            supportingText = {
-                Text("${comment.length}/30")
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // TOTAL
-        Text("Total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-
-        OutlinedTextField(
-            value = String.format("$ %.2f", totalWithTax),
-            onValueChange = {},
-            readOnly = true,
-            modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(
-                disabledTextColor = Color.Black,
-                disabledContainerColor = Color(0xFFF3F4F6)
-            )
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // BOTÓN FINAL
-        Button(
-            onClick = {
-                val creditText = selectedDiscount?.substringAfter("a ") ?: "15 días"
-
-                val order = OrderToSend(
-                    customer = selectedClient!!.Ruc.toString(),
-                    discountApplied = discountPercent,
-                    credit = "Contado $creditText",
-                    comment = comment,
-                    netTotal = totalNetoRounded,
-                    totalWithTax = totalWithTax,
-                    products = selectedProducts.map {
-                        ProductToSendJSON(
-                            id = it.id.toString(),
-                            quantity = it.quantity
-                        )
-                    }
-                )
-
-                orderViewModel.registerOrder(order)
-            },
-            enabled = isFormValid,
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (isFormValid) Color(0xFF005BBB) else Color.Gray,
-                contentColor = Color.White
-            )
-        ) {
-            Text("Generar Orden", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold))
-        }
-
-        if (registerResult.isNotBlank()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = registerResult,
-                color = if (registerResult.contains("Error", true)) Color.Red else Color(0xFF22C55E),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
     }
 }
 
+data class DiscountInfo(
+    val discountApplied: Int,
+    val credit: String
+)
 
+fun parseDiscountOption(option: String): DiscountInfo {
+    val discountRegex = Regex("(\\d+)%")
+    val discount = discountRegex.find(option)?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
+    val creditRegex = Regex("(Contado|Crédito)\\s(\\d+)")
+    val match = creditRegex.find(option)
+    val creditType = match?.groupValues?.get(1) ?: ""
+    val days = match?.groupValues?.get(2) ?: ""
+
+    // Determinar si es singular o plural
+    val dayLabel = if (days == "1") "día" else "días"
+
+    val credit = "$creditType $days $dayLabel"
+
+    return DiscountInfo(discountApplied = discount, credit = credit)
+}
 
 @Composable
 fun ProductoCardToSend(

@@ -65,7 +65,11 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.benchmark.macro)
     implementation(libs.androidx.annotation)
+    implementation(libs.androidx.navigation.runtime.android)
+    implementation(libs.androidx.room.external.antlr)
+    implementation(libs.billing.ktx)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -126,6 +130,18 @@ dependencies {
     // Coil para carga de imágenes
     implementation("io.coil-kt:coil-compose:2.5.0")
 
+    implementation("androidx.compose.material:material-icons-extended:1.6.1")
 
+
+    //TESTING
+    // JUnit
+    testImplementation("junit:junit:4.13.2")
+
+    // Mockito con soporte para Kotlin
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
+
+    // Coroutines test (si usas corrutinas)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation(kotlin("test"))
 
 }

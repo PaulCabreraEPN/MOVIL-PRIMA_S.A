@@ -33,10 +33,9 @@ data class ClientRegisterResponse(
 
 data class Client (
     val id: String,
-    val Ruc: Long,
-    val telephone: Long,
+    val Ruc: String,
+    val telephone: String,
     val email: String,
-    val credit: String,
     val state: String,
     val Address: String,
     val Name: String,

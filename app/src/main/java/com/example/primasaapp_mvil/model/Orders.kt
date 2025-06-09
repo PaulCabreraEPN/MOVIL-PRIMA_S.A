@@ -1,6 +1,7 @@
 package com.example.primasaapp_mvil.model
 
 import com.google.gson.annotations.SerializedName
+import java.math.BigDecimal
 
 data class OrdersResponse(
     val data: List<Order>
@@ -14,6 +15,7 @@ data class Order(
     val netTotal: Double,
     val totalWithTax: Double,
     val status: String,
+    val credit: String,
     val comment: String,
     val seller: SellerData,
     val registrationDate: String?,
@@ -27,9 +29,10 @@ data class Order(
 data class CustomerData(
     val _id: String,
     val Name: String,
-    val Ruc: Long,
+    val ComercialName: String,
+    val Ruc: String,
     val Address: String,
-    val telephone: Long,
+    val telephone: String,
     val email: String,
     val credit: String,
     val state: String
@@ -62,8 +65,8 @@ data class OrderToSend(
     val customer: String,
     val products: List<ProductToSendJSON>,
     val discountApplied: Int,
-    val netTotal: Double,
-    val totalWithTax: Double,
+    val netTotal: BigDecimal?,
+    val totalWithTax: BigDecimal?,
     val comment: String,
     val credit: String,
 )
@@ -99,8 +102,10 @@ data class OrderDatabyID(
     val status: String,
     val comment: String,
     val registrationDate: String,
-    val lastUpdate: String,
-    val seller: Seller
+    val seller: Seller,
+    val lastUpdate: String?,
+    val createdAt: String?,
+    val updatedAt: String?,
 )
 
 data class OrderData(

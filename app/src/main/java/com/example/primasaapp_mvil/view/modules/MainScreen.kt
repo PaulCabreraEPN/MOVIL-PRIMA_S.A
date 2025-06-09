@@ -33,7 +33,7 @@ class MainScreenActivity : ComponentActivity(){
 fun MainScreen() {
     val navController = rememberNavController()
     Scaffold(
-        topBar = { TopBar() },
+        topBar = { TopBar(navController) },
         bottomBar = { BottomNavBar(navController) },
         containerColor = Color(0xFFF6F6F6)
     ) { innerPadding ->

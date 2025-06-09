@@ -6,6 +6,7 @@ import com.example.primasaapp_mvil.data.remote.LoginRequest
 import com.example.primasaapp_mvil.data.remote.LoginResponse
 import com.example.primasaapp_mvil.data.remote.RecoveryPasswordResponse
 import com.example.primasaapp_mvil.data.remote.ResetPasswordRequest
+import com.example.primasaapp_mvil.data.remote.passwordReset
 import com.example.primasaapp_mvil.model.Client
 import com.example.primasaapp_mvil.model.ClientRegisterResponse
 import com.example.primasaapp_mvil.model.ClientRequest
@@ -16,6 +17,8 @@ import com.example.primasaapp_mvil.model.OrderResponsetoSend
 import com.example.primasaapp_mvil.model.OrderToSend
 import com.example.primasaapp_mvil.model.Product
 import com.example.primasaapp_mvil.model.ProductResponse
+import com.example.primasaapp_mvil.model.ProfileResponse
+import com.example.primasaapp_mvil.model.SellerUpdate
 import retrofit2.Response
 import javax.inject.Inject
 
@@ -31,11 +34,22 @@ class AuthRepository @Inject constructor(private val api:ApiService){
         return api.sendResetEmail(EmailRequest(email))
     }
 
-    suspend fun resetPasswordToken(token: String, password: String, confirmpassword: String){
-        val response = api.resetPassword(token, ResetPasswordRequest(password, confirmpassword))
-        if (!response.isSuccessful){
-            throw Exception("No se pudo restablecer la contraseña")
-        }
+    //Verificar el token
+    suspend fun verifyToken(token: String): Response<RecoveryPasswordResponse> {
+        return api.verifyToken(token)
+    }
+
+    suspend fun resetPasswordToken(token: String, password: String, confirmpassword: String): Response<RecoveryPasswordResponse> {
+        val passwords = ResetPasswordRequest(
+            password = password,
+            confirmpassword = confirmpassword
+        )
+        return api.resetPassword(token, passwords)
+    }
+
+    //Actualizar información Perfil
+    suspend fun updateProfile(id: String, token: String, data:SellerUpdate): Response<ProfileResponse>{
+        return api.updateProfile(id, "Bearer $token", data)
     }
 
     //Traer clientes
@@ -78,6 +92,10 @@ class AuthRepository @Inject constructor(private val api:ApiService){
     //Registrar Orden
     suspend fun registrerOrder(token: String, order: OrderToSend): Response<OrderResponsetoSend>{
         return api.registerOrder("Bearer $token", order)
+    }
+
+    suspend fun updateOrder(id: String, token: String, order: OrderToSend): Response<OrderResponsetoSend>{
+        return api.updateOrder(id, "Bearer $token", order)
     }
 
 }

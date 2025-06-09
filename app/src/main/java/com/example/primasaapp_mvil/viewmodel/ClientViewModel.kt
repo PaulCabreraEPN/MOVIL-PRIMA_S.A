@@ -37,6 +37,7 @@ class ClientViewModel @Inject constructor(
         fetchClients()
     }
 
+    val isLoadingClient = MutableStateFlow(false)
     val isLoading = MutableStateFlow(false)
 
     private fun fetchClients() {
@@ -94,7 +95,7 @@ class ClientViewModel @Inject constructor(
 
     fun fetchClientById(id: String) {
         viewModelScope.launch {
-            isLoading.value = true
+            isLoadingClient.value = true
             try {
                 val token = dataStoreManager.tokenFlow.first()
                 if (!token.isNullOrBlank()) {
@@ -119,7 +120,7 @@ class ClientViewModel @Inject constructor(
                 println("Excepción al obtener cliente por ID: ${e.message}")
                 e.printStackTrace()
             }finally {
-                isLoading.value = false
+                isLoadingClient.value = false
             }
         }
     }
@@ -135,7 +136,7 @@ class ClientViewModel @Inject constructor(
                         val body = response.body()
                         if (body != null) {
                             _registerResult.value = Result.success("Cliente actualizado con éxito")
-                            fetchClients() // Refrescar lista después de actualizar
+                            fetchClients()
                         } else {
                             _registerResult.value = Result.failure(Exception("Respuesta vacía del servidor"))
                         }

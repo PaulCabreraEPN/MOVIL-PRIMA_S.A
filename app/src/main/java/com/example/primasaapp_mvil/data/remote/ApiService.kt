@@ -10,8 +10,12 @@ import com.example.primasaapp_mvil.model.OrderResponsetoSend
 import com.example.primasaapp_mvil.model.OrderToSend
 import com.example.primasaapp_mvil.model.OrdersResponse
 import com.example.primasaapp_mvil.model.ProductResponse
+import com.example.primasaapp_mvil.model.ProfileResponse
+import com.example.primasaapp_mvil.model.Seller
+import com.example.primasaapp_mvil.model.SellerUpdate
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.PATCH
@@ -26,11 +30,23 @@ interface ApiService {
     @POST("recovery-password")
     suspend fun sendResetEmail(@Body body: EmailRequest): Response<RecoveryPasswordResponse>
 
-    @POST("auth/reset-password/{token}")
+    @GET("recovery-password/{token}")
+    suspend fun verifyToken(
+        @Path("token") token: String,
+    ): Response<RecoveryPasswordResponse>
+
+    @POST("recovery-password/{token}")
     suspend fun resetPassword(
         @Path("token") token: String,
         @Body body: ResetPasswordRequest
-    ): Response<Unit>
+    ): Response<RecoveryPasswordResponse>
+
+    @PATCH("updateMyProfile/{id}")
+    suspend fun updateProfile(
+        @Path("id") id: String,
+        @Header("Authorization") token: String,
+        @Body sellerUpdate: SellerUpdate
+    ):  Response<ProfileResponse>
 
     @GET("clients")
     suspend fun getClients(
@@ -72,9 +88,23 @@ interface ApiService {
         @Header("Authorization") token: String,
     ): Response<OrderResponsetoID>
 
+    @PATCH("orders/update/{id}")
+    suspend fun updateOrder(
+        @Path("id") id: String,
+        @Header("Authorization") token: String,
+        @Body order: OrderToSend
+    ): Response<OrderResponsetoSend>
+
     @POST("orders/create")
     suspend fun registerOrder(
         @Header("Authorization") token: String,
         @Body order: OrderToSend
     ): Response<OrderResponsetoSend>
+
+    @DELETE("orders/{id}")
+    suspend fun deleteOrder(
+        @Path("id") id: String,
+        @Header("Authorization") token: String
+    )
+
 }

@@ -15,7 +15,10 @@ import javax.inject.Inject
 class ProductViewModel @Inject constructor(
     private val repository: AuthRepository,
     private val dataStoreManager: DataStoreManager
+
 ): ViewModel(){
+    private val _successMessage = MutableStateFlow<String?>(null)
+    val successMessage: StateFlow<String?> = _successMessage
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products : StateFlow<List<Product>> = _products
     init {
@@ -28,6 +31,7 @@ class ProductViewModel @Inject constructor(
                 if (!token.isNullOrBlank()){
                     try {
                         _products.value = repository.getProducts(token)
+                        _successMessage.value = "Productos obtenidos con éxito"
                     }catch (e: Exception){
                         e.printStackTrace()
                     }
@@ -35,4 +39,6 @@ class ProductViewModel @Inject constructor(
             }
         }
     }
+
+
 }

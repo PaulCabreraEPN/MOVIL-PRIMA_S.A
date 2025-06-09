@@ -1,7 +1,10 @@
 package com.example.primasaapp_mvil.view.components
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -10,12 +13,16 @@ import com.example.primasaapp_mvil.view.modules.*
 import com.example.primasaapp_mvil.viewmodel.ClientViewModel
 import com.example.primasaapp_mvil.viewmodel.OrderViewModel
 import com.example.primasaapp_mvil.viewmodel.ProductViewModel
+import com.example.primasaapp_mvil.viewmodel.UserViewModel
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifier) {
     val clientViewModel: ClientViewModel = viewModel()
     val orderViewModel: OrderViewModel = viewModel()
     val productViewModel : ProductViewModel = viewModel ()
+    val userViewModel: UserViewModel = hiltViewModel()
+
 
     NavHost(
         navController = navController,
@@ -35,7 +42,11 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifi
         }
 
         composable("orders") {
-            OrdersScreen(navController = navController)
+            OrdersScreen(navController = navController,  orderViewModel = orderViewModel)
+        }
+
+        composable("profile") {
+            ProfileScreen(navController = navController, userViewModel = userViewModel)
         }
 
         composable("categoria/{nombreCategoria}") { backStackEntry ->
@@ -67,12 +78,24 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifi
             OrderDetailScreen(
                 orderId = orderId,
                 orderViewModel = orderViewModel,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                navController = navController
+            )
+        }
+
+        composable("orderEdit/{orderId}") { backStackEntry ->
+            val orderId = backStackEntry.arguments?.getString("orderId") ?: return@composable
+            EditOrder(
+                orderId = orderId,
+                orderViewModel = orderViewModel,
+                onBack = { navController.popBackStack() },
+                navController = navController
             )
         }
 
         composable ( "resgisterOrder" ) {
             RegisterOrderScreen(
+                orderId = "",
                 navController = navController,
                 orderViewModel = orderViewModel,
                 onBack = { navController.popBackStack() }
