@@ -68,6 +68,8 @@ dependencies {
     implementation(libs.androidx.navigation.runtime.android)
     implementation(libs.androidx.room.external.antlr)
     implementation(libs.billing.ktx)
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
     testImplementation(libs.junit)
     testImplementation(libs.junit.jupiter)
     androidTestImplementation(libs.androidx.junit)
@@ -131,6 +133,8 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     implementation("androidx.compose.material:material-icons-extended:1.6.1")
+    implementation ("androidx.compose.ui:ui:1.5.4")
+
 
 
     //TESTING
@@ -143,5 +147,7 @@ dependencies {
     // Coroutines test (si usas corrutinas)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation(kotlin("test"))
+
+
 
 }

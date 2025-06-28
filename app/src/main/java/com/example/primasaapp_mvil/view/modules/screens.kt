@@ -3,9 +3,11 @@ package com.example.primasaapp_mvil.view.modules
 import android.os.Build
 import android.util.Log
 import android.util.Patterns
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -61,10 +63,13 @@ import com.example.primasaapp_mvil.viewmodel.UserViewModel
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.draw.clip
 import androidx.navigation.NavController
 import androidx.compose.ui.platform.LocalContext
@@ -73,11 +78,11 @@ import androidx.navigation.NavHostController
 import com.example.primasaapp_mvil.model.ClientRequest
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.input.KeyboardType
 import com.example.primasaapp_mvil.model.ClientUpdate
 import com.example.primasaapp_mvil.model.CustomerData
 import com.example.primasaapp_mvil.model.OrderToSend
+import com.example.primasaapp_mvil.model.ProductDetails
 import com.example.primasaapp_mvil.model.ProductToSendJSON
 import com.example.primasaapp_mvil.view.components.BarraInferiorPedido
 import kotlinx.coroutines.delay
@@ -100,8 +105,12 @@ fun HomeScreen(
     val orders by orderViewModel.orders.collectAsState()
     val cedula by userViewModel.cedula.collectAsState()
 
-    val totalOrders = orders.size
-    val totalGeneral = orders.sumOf { it.totalWithTax }
+    val totalOrders = orders.count { it.status != "Cancelado" }
+    val totalGeneral = orders
+        .filter { it.status != "Cancelado" && it.status != "Pendiente" }
+        .sumOf { it.totalWithTax }
+
+    BackHandler(enabled = true) {}
 
     Column(
         modifier = Modifier
@@ -250,7 +259,7 @@ fun OpcionesGrid(navController: NavController) {
         Triple("Registrar Cliente", Icons.Default.PersonAdd, "registerClient"),
         Triple("Consular Inventario", Icons.Default.List, "inventory"),
         Triple("Modificar Pedido", Icons.Default.EditNote, "orders"),
-        Triple("Productos Destacados", Icons.Default.Star, "inventory"),
+        Triple("Productos Destacados", Icons.Default.Star, "topProducts"),
         Triple("Mis Proformas", Icons.Default.Receipt, "orders")
     )
 
@@ -309,6 +318,148 @@ fun OpcionShortcut(label: String, icon: ImageVector, modifier: Modifier = Modifi
     }
 }
 
+//TOP PRODUCTOS ESTRELLA
+fun obtenerTopProductosMasVendidos(orders: List<Order>): List<Pair<ProductDetails, Int>> {
+    val contador = mutableMapOf<ProductDetails, Int>()
+
+    orders.forEach { order ->
+        order.products.forEach { producto ->
+            val detalles = producto.productDetails
+            val cantidad = producto.quantity
+
+            if (contador.containsKey(detalles)) {
+                contador[detalles] = contador[detalles]!! + cantidad
+            } else {
+                contador[detalles] = cantidad
+            }
+        }
+    }
+
+    return contador.entries
+        .sortedByDescending { it.value }
+        .map { it.key to it.value }
+}
+
+
+@Composable
+fun TopProductosMasVendidosScreen(
+    orderViewModel: OrderViewModel = hiltViewModel()
+) {
+    val orders by orderViewModel.orders.collectAsState()
+    val isLoading by orderViewModel.isLoading.collectAsState()
+
+    val topProductos = remember(orders) { obtenerTopProductosMasVendidos(orders) }
+
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Color(0xFF005BBB))
+        }
+    } else {
+        Scaffold(
+            containerColor = Color(0xFFF5F5F5),
+            topBar = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF5F5F5))
+                        .padding(16.dp)
+                ) {
+                    Text(
+                        text = "Top productos más vendidos",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF005BBB)
+                        ),
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    )
+                }
+            }
+        ) { padding ->
+            LazyColumn(
+                contentPadding = padding,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                itemsIndexed(topProductos) { index, (producto, cantidadVendida) ->
+                    ProductoCardMasVendido(
+                        orden = index + 1,
+                        producto = producto,
+                        cantidadVendida = cantidadVendida
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProductoCardMasVendido(
+    orden: Int,
+    producto: ProductDetails,
+    cantidadVendida: Int
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$orden.",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF005BBB),
+                modifier = Modifier.padding(end = 8.dp)
+            )
+
+            // Imagen del producto (si se tuviera una URL)
+            AsyncImage(
+                model = producto.imgUrl,
+                contentDescription = "Imagen del producto",
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.LightGray),
+                contentScale = ContentScale.Crop
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Descripción
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = producto.product_name ?: "Producto sin nombre",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                )
+                producto.reference?.let {
+                    Text(text = "Referencia: $it", style = MaterialTheme.typography.bodySmall)
+                }
+                producto.price?.let {
+                    Text(text = "Precio: $${"%.2f".format(it)}", style = MaterialTheme.typography.bodySmall)
+                }
+                Text(
+                    text = "Cantidad vendida: $cantidadVendida",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFF16A34A)
+                    )
+                )
+            }
+        }
+    }
+}
+
+
+
+
+
 
 //INVENTARIO
 fun clasificarProductos(productos: List<Product>): Map<String, List<Product>> {
@@ -352,15 +503,18 @@ fun InventarioView(
 
     InventarioCategoriasScreen(
         productosPorCategoria = productosPorCategoria,
-        onCategoriaClick = onCategoriaClick
+        onCategoriaClick = onCategoriaClick,
+        viewModel = viewModel
     )
 }
 
 @Composable
 fun InventarioCategoriasScreen(
     productosPorCategoria: Map<String, List<Product>>,
-    onCategoriaClick: (String) -> Unit
+    onCategoriaClick: (String) -> Unit,
+    viewModel: ProductViewModel
 ) {
+    val isLoading by viewModel.isLoading.collectAsState()
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Inventario",
@@ -371,24 +525,37 @@ fun InventarioCategoriasScreen(
             modifier = Modifier.padding(16.dp)
         )
 
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            productosPorCategoria.forEach { (categoria, productos) ->
-                val imageUrl = productos.firstOrNull()?.imgUrl.orEmpty()
-                item {
-                    CategoriaCard(
-                        categoria = categoria,
-                        imageUrl = imageUrl,
-                        onClick = { onCategoriaClick(categoria) }
-                    )
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF005BBB))
+            }
+        }else{
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                productosPorCategoria.forEach { (categoria, productos) ->
+                    val imageUrl = productos.firstOrNull()?.imgUrl.orEmpty()
+                    item {
+                        CategoriaCard(
+                            categoria = categoria,
+                            imageUrl = imageUrl,
+                            onClick = { onCategoriaClick(categoria) }
+                        )
+                    }
                 }
             }
         }
+
+
     }
 }
 
@@ -548,56 +715,74 @@ fun ProductDetailDialog(product: Product, onDismiss: () -> Unit) {
         ) {
             Column(
                 modifier = Modifier
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .background(Color.White)
             ) {
-                Text(
-                    text = product.product_name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp,
-                        color = Color(0xFF222222)
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                AsyncImage(
-                    model = product.imgUrl,
-                    contentDescription = product.product_name,
-                    contentScale = ContentScale.Crop,
+                // Top Bar con fondo azul
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                DetailRow(label = "Referencia:", value = product.reference)
-                DetailRow(label = "Descripción:", value = product.description)
-                DetailRow(label = "Precio:", value = "$${String.format("%.2f", product.price)}")
-                DetailRow(label = "Stock disponible:", value = "${product.stock}")
-                DetailRow(label = "Código:", value = "${product.id}")
-                DetailRow(
-                    label = "Estado:",
-                    value = if (product.stock > 0) "Disponible" else "Agotado",
-                    valueColor = if (product.stock > 0) Color(0xFF008000) else Color.Red
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                        .background(Color(0xFF005BBB))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Text("Cerrar")
+                    Text(
+                        text = product.product_name,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 18.sp
+                        ),
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    )
+
+                    IconButton(
+                        onClick = {
+                            onDismiss()
+                        },
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                // Contenido del diálogo
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    AsyncImage(
+                        model = product.imgUrl,
+                        contentDescription = product.product_name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .height(200.dp)
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    DetailRow(label = "Referencia:", value = product.reference)
+                    DetailRow(label = "Descripción:", value = product.description)
+                    DetailRow(label = "Precio:", value = "$${String.format("%.2f", product.price)}")
+                    DetailRow(label = "Stock disponible:", value = "${product.stock}")
+                    DetailRow(label = "Código:", value = "${product.id}")
+                    DetailRow(
+                        label = "Estado:",
+                        value = if (product.stock > 0) "Disponible" else "Agotado",
+                        valueColor = if (product.stock > 0) Color(0xFF008000) else Color.Red
+                    )
                 }
             }
         }
     }
 }
+
 
 @Composable
 fun DetailRow(label: String, value: String, valueColor: Color = Color.DarkGray) {
@@ -627,6 +812,7 @@ fun ClientsScreen(navController: NavController, viewModel: ClientViewModel = hil
     val clients by viewModel.clients.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedInitial by remember { mutableStateOf<Char?>(null) }
+    val isLoading by viewModel.isLoading.collectAsState()
 
     val filteredClients = clients
         .filter {
@@ -731,47 +917,61 @@ fun ClientsScreen(navController: NavController, viewModel: ClientViewModel = hil
                     }
                 }
 
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 16.dp)
-                ) {
-                    item {
-                        val headerText = if (selectedInitial == null) "Todos los clientes" else "Clientes con '${selectedInitial}'"
-                        Text(
-                            text = headerText,
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color(0xFFF0F0F0))
-                                .padding(vertical = 8.dp, horizontal = 8.dp)
-                        )
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Color(0xFF005BBB))
                     }
-
-                    groupedClients.forEach { (initial, clientsForLetter) ->
+                }else{
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 16.dp)
+                    ) {
                         item {
+                            val headerText = if (selectedInitial == null) "Todos los clientes" else "Clientes con '${selectedInitial}'"
                             Text(
-                                text = initial.toString(),
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                text = headerText,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(Color.LightGray)
-                                    .padding(8.dp)
+                                    .background(Color(0xFFF0F0F0))
+                                    .padding(vertical = 8.dp, horizontal = 8.dp)
                             )
                         }
 
-                        items(clientsForLetter) { client ->
-                            ClientCard(client, navController)
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                    }
+                        groupedClients.forEach { (initial, clientsForLetter) ->
+                            item {
+                                Text(
+                                    text = initial.toString(),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(Color.LightGray)
+                                        .padding(8.dp)
+                                )
+                            }
 
-                    if (displayedClients.isEmpty()) {
-                        item {
-                            Text(
-                                "No se encontraron clientes.",
-                                modifier = Modifier.padding(16.dp)
-                            )
+                            items(clientsForLetter) { client ->
+                                ClientCard(client, navController)
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+
+                        if (displayedClients.isEmpty()) {
+                            item {
+                                Text(
+                                    "No se encontraron clientes.",
+                                    modifier =
+                                        Modifier.padding(16.dp),
+                                        color = Color.Gray,
+                                        style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
                         }
                     }
                 }
@@ -781,7 +981,6 @@ fun ClientsScreen(navController: NavController, viewModel: ClientViewModel = hil
 }
 
 
-// Botón de letra reutilizable con diseño mejorado
 @Composable
 fun LetterFilterButton(
     label: String,
@@ -988,9 +1187,7 @@ fun ClientDetailScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text("Información del Cliente", style = MaterialTheme.typography.labelLarge)
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = Color.Red)
-                            }
+
                         }
 
                         OutlinedTextField(
@@ -1426,32 +1623,6 @@ fun RegisterClientScreen(
 }
 
 
-
-
-@Composable
-fun CustomTextField(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = Modifier
-            .fillMaxWidth(0.95f)
-            .height(60.dp)
-            .padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = TextFieldDefaults.colors(
-            unfocusedContainerColor = Color.White,
-            focusedContainerColor = Color.White
-        )
-    )
-}
-
-
-//ORDERS
 @Composable
 fun OrdersScreen(
     navController: NavHostController,
@@ -1459,15 +1630,27 @@ fun OrdersScreen(
 ) {
     val orders by orderViewModel.orders.collectAsState()
 
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Búsqueda por últimos 6 dígitos del _id y por ComercialName
+    val filteredOrders = orders.filter { order ->
+        val idSuffix = if (order._id.length >= 6) order._id.takeLast(6) else order._id
+        val name = order.customer.ComercialName
+
+        idSuffix.contains(searchQuery, ignoreCase = true) ||
+                name.contains(searchQuery, ignoreCase = true)
+    }
+
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF6F6F6)), // Color de fondo de toda la pantalla
+            .background(Color(0xFFF6F6F6)),
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
                     orderViewModel.clearOrderForm()
-                    navController.navigate("orderEdit/0000") },
+                    navController.navigate("orderEdit/0000")
+                },
                 containerColor = Color(0xFF005BBB),
                 contentColor = Color.White,
                 shape = CircleShape
@@ -1479,7 +1662,7 @@ fun OrdersScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF6F6F6)) // Asegura que el Column también tenga el fondo
+                .background(Color(0xFFF6F6F6))
                 .padding(paddingValues)
                 .padding(horizontal = 16.dp)
         ) {
@@ -1495,7 +1678,30 @@ fun OrdersScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (orders.isEmpty()) {
+            // 🔍 Buscador
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Buscar pedido") },
+                trailingIcon = {
+                    Icon(Icons.Default.Search, contentDescription = "Buscar")
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(50),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color(0xFF2563EB),
+                    unfocusedBorderColor = Color(0xFF2563EB),
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White,
+                    cursorColor = Color(0xFF2563EB)
+                )
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (filteredOrders.isEmpty()) {
                 Text(
                     text = "No hay pedidos registrados.",
                     color = Color.Gray,
@@ -1503,7 +1709,7 @@ fun OrdersScreen(
                 )
             } else {
                 LazyColumn {
-                    items(orders) { order ->
+                    items(filteredOrders) { order ->
                         OrderCard(
                             order = order,
                             onClick = {
@@ -1517,6 +1723,7 @@ fun OrdersScreen(
         }
     }
 }
+
 
 
 
@@ -1639,142 +1846,191 @@ fun OrderDetailScreen(
     onBack: () -> Unit
 ) {
     val order by orderViewModel.selectedOrder.collectAsState()
-
+    var showDialog by remember { mutableStateOf(false) }
+    val isLoading by orderViewModel.isLoading.collectAsState()
 
     LaunchedEffect(orderId) {
         orderViewModel.fetchOrderById(orderId)
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = Color(0xFFF5F5F5),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .padding(horizontal = 16.dp)
-                        .background(Color(0xFFF5F5F5)),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Proforma",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF005BBB)
-                        )
-                    )
-                    IconButton(onClick = { navController.navigate("orderEdit/${orderId}") }) {
-                        Icon(
-                            imageVector = Icons.Filled.Edit,
-                            contentDescription = "Editar",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = { Text("Confirmar cancelación") },
+            text = { Text("¿Estás seguro de que deseas cancelar esta orden? Esta acción no se puede deshacer.") },
+            containerColor = Color(0xFFF5F5F5),
+            confirmButton = {
+                TextButton(onClick = {
+                    showDialog = false
+                    orderViewModel.deleteOrder(orderId)
+                    navController.navigate("orders")
+                }) {
+                    Text("Eliminar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
                 }
             }
-        },
-        containerColor = Color(0xFFF5F5F5)
-    ) { innerPadding ->
-        order?.let {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .verticalScroll(rememberScrollState())
-                    .background(Color(0xFFF5F5F5))
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White)
+        )
+    }
+
+    if (isLoading) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator(color = Color(0xFF005BBB))
+        }
+    }else{
+        Scaffold(
+            topBar = {
+                Surface(
+                    color = Color(0xFFF5F5F5),
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-
-                        val formattedDate = formatProformaDate(order!!.createdAt.toString())
-
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
+                            .padding(horizontal = 16.dp)
+                            .background(Color(0xFFF5F5F5)),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "Fecha de emisión: $formattedDate",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.End
+                            text = "Proforma",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF005BBB)
+                            ),
+                            modifier = Modifier.weight(1f)
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        if (order?.status == "Pendiente") {
+                            IconButton(onClick = { navController.navigate("orderEdit/${orderId}") }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Edit,
+                                    contentDescription = "Editar",
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
 
-                        // ID
-                        val orderIdSafe = order!!._id.takeLast(5)
-                        Text(
-                            text = "Orden #$orderIdSafe",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        ClientInfoSection(order!!.customer)
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        // Productos
-                        Text(
-                            text = "Productos:",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant)
-
-                        if (order!!.products.isEmpty()) {
-                            Text("No hay productos", color = Color.Gray)
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                order!!.products.forEach { product ->
-                                    ProductItemRow(product, order!!.discountApplied )
-                                }
+                            IconButton(onClick = { showDialog = true }) {
+                                Icon(
+                                    imageVector = Icons.Filled.Delete,
+                                    contentDescription = "Eliminar",
+                                    tint = MaterialTheme.colorScheme.error
+                                )
                             }
                         }
+                    }
 
-                        Divider(
-                            color = MaterialTheme.colorScheme.outlineVariant,
-                            thickness = 1.dp,
-                            modifier = Modifier.padding(vertical = 12.dp)
-                        )
+                }
+            },
+            containerColor = Color(0xFFF5F5F5)
+        ) { innerPadding ->
+            order?.let {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .verticalScroll(rememberScrollState())
+                        .background(Color(0xFFF5F5F5))
+                ) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
 
-                        val descu = order!!.netTotal - (order!!.netTotal * (order!!.discountApplied.toDouble() / 100))
+                            val formattedDate = formatProformaDate(order!!.createdAt.toString())
 
-                        println(descu)
-                        // Resumen de totales
-                        SummarySection(
-                            discountPercent = order!!.discountApplied,
-                            discountAmount = (order!!.netTotal * (order!!.discountApplied.toDouble() / 100)),
-                            netTotal = order!!.netTotal,
-                            totalWithTax = order!!.totalWithTax
-                        )
+                            Text(
+                                text = "Fecha de emisión: $formattedDate",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth(),
+                                textAlign = TextAlign.End
+                            )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "Condición y forma de pago: ${order!!.credit}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            textAlign = TextAlign.Center
-                        )
+                            // ID
+                            val orderIdSafe = order!!._id.takeLast(5)
+                            Text(
+                                text = "Orden #$orderIdSafe",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            ClientInfoSection(order!!.customer)
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Productos
+                            Text(
+                                text = "Productos:",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                            if (order!!.products.isEmpty()) {
+                                Text("No hay productos", color = Color.Gray)
+                            } else {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    order!!.products.forEach { product ->
+                                        ProductItemRow(product, order!!.discountApplied )
+                                    }
+                                }
+                            }
+
+                            Divider(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                thickness = 1.dp,
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            )
+
+                            val descu = order!!.netTotal - (order!!.netTotal * (order!!.discountApplied.toDouble() / 100))
+
+                            println(descu)
+                            // Resumen de totales
+                            SummarySection(
+                                discountPercent = order!!.discountApplied,
+                                discountAmount = (order!!.netTotal * (order!!.discountApplied.toDouble() / 100)),
+                                netTotal = order!!.netTotal,
+                                totalWithTax = order!!.totalWithTax
+                            )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Text(
+                                text = "Condición y forma de pago: ${order!!.credit}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                textAlign = TextAlign.Center
+                            )
+
+                        }
                     }
                 }
             }
         }
     }
+
+
 }
 
 @Composable
@@ -1818,34 +2074,12 @@ fun ClientInfoRow(label: String, value: String) {
 }
 
 
-
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
 @Composable
 private fun ProductItemRow(product: ProductSelected, discountPercent: Int) {
     val details = product.productDetails
     val quantity = product.quantity
     val name = details.product_name ?: "Sin nombre"
-    val reference = details.reference ?: ""
     val unitPrice = details.price ?: 0.0
-    val total = unitPrice * quantity
     val discountAmount = discountPercent / 100.0
 
     Column {
@@ -2088,7 +2322,7 @@ fun RegisterOrderScreen(
     val totalWithTax = totalNetoRounded.multiply(taxRate).setScale(2, RoundingMode.HALF_UP)
 
 
-    val isCommentValid = comment.length >= 10 || comment == "Sin novedades"
+    val isCommentValid = (comment.length in 10..50) || comment == "Sin novedades"
     val isFormValid = selectedClient != null && selectedDiscount != null && selectedProducts.isNotEmpty() && isCommentValid
 
     LaunchedEffect(registerResult) {
@@ -2317,7 +2551,7 @@ fun RegisterOrderScreen(
             OutlinedTextField(
                 value = comment,
                 onValueChange = {
-                    if (it.length <= 30) {
+                    if (it.length <= 50) {
                         orderViewModel.setComentario(it)
                     }
                 },
@@ -2325,8 +2559,15 @@ fun RegisterOrderScreen(
                 placeholder = { Text("Escribe un comentario") },
                 singleLine = true,
                 supportingText = {
-                    Text("${comment.length}/30")
-                }
+                    val isTooShort = comment.length in 1..9
+                    val isTooLong = comment.length > 50
+                    when {
+                        isTooShort -> Text("El comentario debe tener al menos 10 caracteres.")
+                        isTooLong -> Text("El comentario no debe superar los 50 caracteres.")
+                        else -> Text("${comment.length}/50")
+                    }
+                },
+                isError = comment.length in 1..9 || comment.length > 50
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -2439,68 +2680,269 @@ fun parseDiscountOption(option: String): DiscountInfo {
 @Composable
 fun ProductoCardToSend(
     producto: Product,
-    pedidoViewModel: OrderViewModel,
-    productViewModel: ProductViewModel = hiltViewModel()
-) {
-    val productosSeleccionados by pedidoViewModel.productosSeleccionados.collectAsState()
-    val cantidad = productosSeleccionados[producto.id] ?: 0
-    val productos by productViewModel.products.collectAsState()
+    orderViewModel: OrderViewModel,
+    modifier: Modifier = Modifier
+){
+    var showDialog by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation(4.dp),
+            .height(IntrinsicSize.Min)
+            .clickable { showDialog = true },
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White) // Fondo blanco
+        elevation = CardDefaults.cardElevation(4.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(12.dp)
-        ) {
-            AsyncImage(
-                model = producto.imgUrl,
-                contentDescription = producto.product_name,
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Fit // Muestra la imagen completa sin recortarla
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Nombre y referencia
+            Text(
+                text = producto.product_name,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF333333)
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = producto.reference,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 13.sp,
+                    color = Color.Gray
+                )
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(producto.product_name, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text("Disponibles: ${producto.stock}", fontSize = 12.sp)
-                Text("$ ${producto.price}", fontSize = 12.sp)
-                Text("${producto.reference}", fontSize = 12.sp)
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = {
-                        pedidoViewModel.disminuirCantidad(producto.id, productos)
-                    },
-                    enabled = cantidad > 0
-                ) {
-                    Icon(Icons.Default.Remove, contentDescription = "Quitar")
-                }
-
-                Text(
-                    "$cantidad",
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.width(24.dp)
+            // Imagen y datos alineados
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                AsyncImage(
+                    model = producto.imgUrl,
+                    contentDescription = producto.product_name,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp))
                 )
 
-                IconButton(
-                    onClick = {
-                        if (cantidad < producto.stock) {
-                            pedidoViewModel.aumentarCantidad(producto.id, producto, productos)
-                        }
-                    },
-                    enabled = cantidad < producto.stock
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "Agregar")
+                    Text(
+                        text = "Cantidad Disponible: ${producto.stock}",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                    Text(
+                        text = "Precio: $${String.format("%.2f", producto.price)}",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp
+                        )
+                    )
+                    Text(
+                        text = "Código: ${producto.id}",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Estado "Disponible"
+            Text(
+                text = if (producto.stock > 0) "Disponible" else "Agotado",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontSize = 12.sp,
+                    color = if (producto.stock > 0) Color(0xFF008000) else Color.Red,
+                    fontWeight = FontWeight.Medium
+                ),
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+    }
+
+    Spacer(modifier = Modifier.height(8.dp))
+    
+    if (showDialog) {
+        ProductDetailDialogToSend(
+            product = producto,
+            onDismiss = { showDialog = false },
+            orderViewModel = orderViewModel
+        )
+    }
+
+}
+
+@Composable
+fun ProductDetailDialogToSend(
+    product: Product,
+    onDismiss: () -> Unit,
+    orderViewModel: OrderViewModel,
+    productViewModel: ProductViewModel = hiltViewModel()
+) {
+    val productosSeleccionados by orderViewModel.productosSeleccionados.collectAsState()
+    val cantidad = productosSeleccionados[product.id] ?: 0
+    val productos by productViewModel.products.collectAsState()
+
+    val estado = if (product.stock > 0) "Disponible" else "Agotado"
+    val notas = """
+        Referencia: ${product.reference}
+        Código: ${product.id}
+        Estado: $estado
+        Stock disponible: ${product.stock}
+    """.trimIndent()
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            tonalElevation = 8.dp,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Box {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    // Imagen del producto
+                    AsyncImage(
+                        model = product.imgUrl,
+                        contentDescription = product.product_name,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .padding(4.dp)
+                            .fillMaxWidth()
+                            .height(250.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        Text(
+                            text = product.product_name,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        Text(
+                            text = product.description,
+                            style = MaterialTheme.typography.bodyMedium.copy(color = Color.Gray),
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        Text(
+                            text = "$${String.format("%.2f", product.price)}",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        Divider()
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Notas para este producto",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+
+                        Text(
+                            text = notas,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp)) // Espacio para el footer
+                }
+
+                // Selector inferior fijo
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Selector cantidad
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .weight(1f)
+                                .border(
+                                    width = 1.dp,
+                                    color = Color.LightGray,
+                                    shape = RoundedCornerShape(50)
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    orderViewModel.disminuirCantidad(product.id, productos)
+                                },
+                                enabled = cantidad > 0
+                            ) {
+                                Icon(Icons.Default.Remove, contentDescription = "Quitar")
+                            }
+
+                            Text("$cantidad", textAlign = TextAlign.Center)
+
+                            IconButton(
+                                onClick = {
+                                    if (cantidad < product.stock) {
+                                        orderViewModel.aumentarCantidad(product.id, product, productos)
+                                    }
+                                },
+                                enabled = cantidad < product.stock
+                            ) {
+                                Icon(Icons.Default.Add, contentDescription = "Agregar")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Botón agregar
+                        Button(
+                            onClick = onDismiss, // o lógica para agregar
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD7004D)),
+                            shape = RoundedCornerShape(50),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Text("Agregar", color = Color.White)
+                        }
+                    }
+                }
+
+                // Botón de retroceso
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .align(Alignment.TopStart)
+                        .background(Color.White.copy(alpha = 0.8f), shape = CircleShape)
+                ) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
                 }
             }
         }
@@ -2539,11 +2981,12 @@ fun ProductSelectorView(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF6F6F6)) // Fondo aplicado aquí
+                .background(Color(0xFFF6F6F6))
         ) {
             InventarioCategoriasScreen(
                 productosPorCategoria = productosPorCategoria,
-                onCategoriaClick = onCategoriaClick
+                onCategoriaClick = onCategoriaClick,
+                viewModel = viewModel
             )
         }
     }

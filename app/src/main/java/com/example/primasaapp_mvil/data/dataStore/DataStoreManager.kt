@@ -1,6 +1,7 @@
 package com.example.primasaapp_mvil.data.dataStore
 
 import android.content.Context
+import androidx.datastore.dataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -29,6 +30,11 @@ class DataStoreManager @Inject constructor(
         val CL_KEY = intPreferencesKey("cedula")
         val PHONE_KEY = stringPreferencesKey("phone")
     }
+
+    suspend fun clearAll() {
+        context.dataStore.edit { it.clear() }
+    }
+
 
     suspend fun saveToken(token: String) {
         context.dataStore.edit { preferences ->

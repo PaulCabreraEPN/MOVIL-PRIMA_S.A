@@ -17,6 +17,7 @@ class MainActivity : AppCompatActivity() {
 
         val isFirstTime = prefs.getBoolean("first_time", true)
 
+
         if (isFirstTime) {
             // Marcar como ya mostrado
             prefs.edit().putBoolean("first_time", false).apply()
@@ -32,3 +33,4 @@ class MainActivity : AppCompatActivity() {
         finish()
     }
 }
+

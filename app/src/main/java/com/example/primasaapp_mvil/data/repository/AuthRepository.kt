@@ -94,8 +94,15 @@ class AuthRepository @Inject constructor(private val api:ApiService){
         return api.registerOrder("Bearer $token", order)
     }
 
+    //Actualizar Orden
     suspend fun updateOrder(id: String, token: String, order: OrderToSend): Response<OrderResponsetoSend>{
         return api.updateOrder(id, "Bearer $token", order)
     }
+
+    //Eliminar Orden
+    suspend fun deleteOrder(id: String, token: String): Response<OrderResponsetoSend> {
+        return api.deleteOrder(id, "Bearer $token")
+    }
+
 
 }

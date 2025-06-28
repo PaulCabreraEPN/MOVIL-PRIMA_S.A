@@ -21,11 +21,14 @@ class ProductViewModel @Inject constructor(
     val successMessage: StateFlow<String?> = _successMessage
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products : StateFlow<List<Product>> = _products
+    val isLoading = MutableStateFlow(false)
+
     init {
         fetchProducts()
     }
     private fun fetchProducts(){
         viewModelScope.launch {
+            isLoading.value = true
             dataStoreManager.tokenFlow.collect{
                     token->
                 if (!token.isNullOrBlank()){
@@ -34,6 +37,8 @@ class ProductViewModel @Inject constructor(
                         _successMessage.value = "Productos obtenidos con éxito"
                     }catch (e: Exception){
                         e.printStackTrace()
+                    }finally {
+                        isLoading.value = false
                     }
                 }
             }

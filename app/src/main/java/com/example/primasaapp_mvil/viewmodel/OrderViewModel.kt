@@ -1,22 +1,16 @@
 package com.example.primasaapp_mvil.viewmodel
 
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.primasaapp_mvil.data.dataStore.DataStoreManager
 import com.example.primasaapp_mvil.data.repository.AuthRepository
 import com.example.primasaapp_mvil.model.Client
 import com.example.primasaapp_mvil.model.Order
-import com.example.primasaapp_mvil.model.OrderData
 import com.example.primasaapp_mvil.model.OrderDatabyID
 import com.example.primasaapp_mvil.model.OrderToSend
 import com.example.primasaapp_mvil.model.Product
 import com.example.primasaapp_mvil.model.ProductToSend
-import com.example.primasaapp_mvil.model.ProductToSendJSON
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +33,9 @@ class OrderViewModel @Inject constructor(
     private val _registerResult = MutableStateFlow("")
     val registerResult: StateFlow<String> = _registerResult.asStateFlow()
 
+    val _deleteResult = MutableStateFlow("")
+    val deleteResult: StateFlow<String> = _deleteResult.asStateFlow()
+
     private val _productosSeleccionados =
         MutableStateFlow<Map<Int, Int>>(emptyMap()) // id -> cantidad
     val productosSeleccionados: StateFlow<Map<Int, Int>> = _productosSeleccionados
@@ -54,12 +51,14 @@ class OrderViewModel @Inject constructor(
     private val _selectedID = MutableStateFlow<String?>(null)
     val selectedID: StateFlow<String?> = _selectedID
 
-    private val _isRegistering = MutableStateFlow(false)
+    val _isRegistering = MutableStateFlow(false)
     val isRegistering: StateFlow<Boolean> = _isRegistering.asStateFlow()
 
     private val _isEdites = MutableStateFlow(false)
     val isEdites: StateFlow<Boolean> = _isEdites
 
+    val _isDeleting = MutableStateFlow(false)
+    val isDeleting: StateFlow<Boolean> = _isDeleting
 
     private val _comentario = MutableStateFlow("")
     val comentario: StateFlow<String> = _comentario
@@ -74,25 +73,30 @@ class OrderViewModel @Inject constructor(
     private val _successMessage = MutableStateFlow<String?>(null)
     val successMessage: StateFlow<String?> = _successMessage
 
+    val isLoading = MutableStateFlow(false)
 
 
     init {
         fetchOrders()
+        println("Entra al init")
     }
 
-    private fun fetchOrders() {
+    fun fetchOrders() {
         viewModelScope.launch {
+            println("Entra al Fetch")
+            isLoading.value = true
             val token = dataStoreManager.tokenFlow.first()
-            val email = dataStoreManager.emailFlow.first()
 
-            if (!token.isNullOrBlank() && email.isNotBlank()) {
+            if (!token.isNullOrBlank()) {
                 try {
                     val orders = repository.getOrders(token)
-                    val filtered = orders.filter { it.seller.email == email }
-                    _orders.value = filtered
+                    _orders.value = orders
                     _successMessage.value = "Órdenes obtenidas con éxito"
+                    isLoading.value = false
                 } catch (e: Exception) {
                     e.printStackTrace()
+                }finally {
+                    isLoading.value = false
                 }
             }
         }
@@ -110,7 +114,7 @@ class OrderViewModel @Inject constructor(
                     if (response.isSuccessful) {
                         _registerResult.value =
                             response.body()?.msg ?: "Orden registrada exitosamente."
-
+                            fetchOrders()
                     } else {
                         val errorBody = response.errorBody()?.string()
                         _registerResult.value =
@@ -160,6 +164,33 @@ class OrderViewModel @Inject constructor(
         }
     }
 
+    fun deleteOrder (id: String){
+        viewModelScope.launch {
+            _isDeleting.value = true
+            try {
+                val token = dataStoreManager.tokenFlow.first()
+                if (!token.isNullOrBlank()){
+                    val response = repository.deleteOrder(id, token)
+                    println(response)
+                    if(response.isSuccessful){
+                        _deleteResult.value =
+                            response.body()?.msg ?: "Orden eliminada correctamente."
+                        fetchOrders()
+                    }else{
+                        val errorBody = response.errorBody()?.string()
+                        _deleteResult.value =
+                            "Errore al eliminar la orden. Código: ${response.code()}. Detalle: $errorBody"
+                        println("Error al eliminar la orden: $errorBody")
+                    }
+                }else{
+                    _deleteResult.value = "Token no disponible"
+                }
+            }catch (e: Exception){
+                _registerResult.value = "Excepción al eliminar orden: ${e.message}"
+            }
+            _isRegistering.value = false
+        }
+    }
 
     fun clearOrderForm() {
         println("Limpiando")
@@ -223,6 +254,7 @@ class OrderViewModel @Inject constructor(
 
     fun fetchOrderById(id: String) {
         viewModelScope.launch{
+            isLoading.value = true
             try {
                 val token = dataStoreManager.tokenFlow.first()
                 if (!token.isNullOrBlank()) {
@@ -231,6 +263,7 @@ class OrderViewModel @Inject constructor(
                         response.body()?.let {
                             _selectedOrder.value = it.data
                             println("Orden obtenida: ${it.data}")
+                            isLoading.value = false
                         }
                     } else {
                         println("Error en la respuesta: ${response.code()} ${response.message()}")
@@ -238,6 +271,8 @@ class OrderViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 println("Excepción: ${e.message}")
+            } finally {
+                isLoading.value = false
             }
         }
     }

@@ -41,14 +41,15 @@ data class CustomerData(
 data class ProductSelected(
     val productId: String,
     val quantity: Int,
-    val productDetails: ProductDetails
+    val productDetails: ProductDetails,
 )
 
 data class ProductDetails(
     val id: Int,
     val product_name: String?,
     val reference: String?,  // antes era String
-    val price: Double?
+    val price: Double?,
+    val imgUrl: String?
 )
 
 data class SellerData(

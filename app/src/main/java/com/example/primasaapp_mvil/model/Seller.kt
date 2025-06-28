@@ -1,6 +1,5 @@
 package com.example.primasaapp_mvil.model
 
-import com.example.primasaapp_mvil.data.remote.LoginData
 import kotlinx.serialization.Serializable
 
 @Serializable

@@ -17,8 +17,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.primasaapp_mvil.model.Product
 
 
@@ -37,14 +40,15 @@ fun BarraInferiorPedido(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFF5F5F5))
+                    .background(Color(0xFF1A4C9C))
                     .padding(8.dp)
             ) {
                 Text(
                     text = "Productos seleccionados",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    color = Color(0xFFF3F4F6)
                 )
 
                 productosSeleccionados.forEach { (id, cantidad) ->
@@ -56,8 +60,25 @@ fun BarraInferiorPedido(
                                 .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(it.product_name)
-                            Text("x$cantidad - $${"%.2f".format(it.price * cantidad)}")
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = it.product_name,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFFF3F4F6),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis)
+
+                            }
+
+                            Text(
+                                text = "x$cantidad - $${"%.2f".format(it.price * cantidad)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFFF3F4F6)
+                            )
                         }
                     }
                 }
@@ -70,7 +91,7 @@ fun BarraInferiorPedido(
                 .fillMaxWidth()
                 .height(64.dp),
             color = Color(0xFF1A4C9C),
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            shape = if (expanded) RectangleShape else RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
             shadowElevation = 4.dp
         ) {
             Row(

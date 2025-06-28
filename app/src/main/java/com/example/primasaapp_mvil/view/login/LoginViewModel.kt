@@ -28,15 +28,18 @@ class LoginViewModel @Inject constructor(
     var loginState by mutableStateOf<Result<LoginResponse>?>(null)
         private set
 
+    val isLoading = MutableStateFlow(false)
+
     fun login(username: String, password: String) {
         viewModelScope.launch {
+            isLoading.value = true
             try {
                 val response = repository.login(username, password)
                 if (response.isSuccessful) {
                     val loginData = response.body()?.data
                     val seller = loginData?.seller
-
                     loginState = Result.success(response.body()!!)
+                    isLoading.value = false
 
                     if (loginData != null && seller != null) {
 
@@ -56,7 +59,26 @@ class LoginViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 loginState = Result.failure(e)
+            } finally {
+                isLoading.value = false
             }
         }
     }
+
+    fun logout() {
+        viewModelScope.launch {
+            try {
+                // Limpiar datos del usuario
+                dataStoreManager.clearAll()
+
+                // Resetear el estado de login (opcional, depende de cómo lo uses en la UI)
+                loginState = Result.failure(Exception("Sesión cerrada"))
+
+            } catch (e: Exception) {
+                // Manejar errores si ocurren al limpiar datos
+                loginState = Result.failure(e)
+            }
+        }
+    }
+
 }

@@ -1,5 +1,6 @@
 package com.example.primasaapp_mvil.view.components
 
+import android.content.Intent
 import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -50,10 +51,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import com.example.primasaapp_mvil.model.SellerUpdate
+import com.example.primasaapp_mvil.view.login.LoginActivity
+import com.example.primasaapp_mvil.view.modules.MainScreenActivity
 import com.example.primasaapp_mvil.viewmodel.UserViewModel
 
 
@@ -92,6 +96,25 @@ fun TopBar(navController: NavController) {
 }
 
 
+fun validateEmail(email: String): String? {
+    return if (email.isBlank()) {
+        "El correo no puede estar vacío"
+    } else if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+        "Correo no válido"
+    } else {
+        null
+    }
+}
+
+fun validatePhone(phone: String): String? {
+    return when {
+        phone.isBlank() -> "El teléfono no puede estar vacío"
+        !phone.startsWith("09") -> "Debe comenzar con 09"
+        phone.length != 10 -> "Debe tener 10 dígitos"
+        !phone.all { it.isDigit() } -> "Solo se permiten números"
+        else -> null
+    }
+}
 
 
 
@@ -100,7 +123,7 @@ fun ProfileScreen(
     navController: NavController,
     userViewModel: UserViewModel,
     onBack: () -> Unit = {},
-    onLogout: () -> Unit = {}
+    loginViewModel: LoginViewModel = hiltViewModel()
 ) {
     val defaultProfileImage = painterResource(id = R.drawable.perfil_icon)
 
@@ -123,6 +146,8 @@ fun ProfileScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val updateResult by userViewModel.updateResult.collectAsState()
     val isLoading by userViewModel.isLoading.collectAsState()
+    val state = loginViewModel.loginState
+    val context = LocalContext.current
 
     val isModified = (editableEmail != (email ?: "")) || (editablePhone != (phone ?: ""))
 
@@ -143,6 +168,8 @@ fun ProfileScreen(
             editablePhone = phone
         }
     }
+
+    
 
     // Mostrar snackbar con resultado update
     LaunchedEffect(updateResult) {
@@ -165,9 +192,9 @@ fun ProfileScreen(
     }
 
     Scaffold(
+        containerColor = Color(0xFFF6F6F6),
         modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF6F6F6)),
+            .fillMaxSize(),
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
                 val isError = data.visuals.message.contains("error", ignoreCase = true)
@@ -203,7 +230,14 @@ fun ProfileScreen(
                     text = "Cerrar Sesión",
                     color = Color.Red,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                    modifier = Modifier.clickable { onLogout() }
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .clickable(
+                            onClick = {
+                                loginViewModel.logout()
+                                context.startActivity(Intent(context, LoginActivity::class.java))
+                            }
+                        )
                 )
             }
 
@@ -251,11 +285,20 @@ fun ProfileScreen(
                     value = editableEmail,
                     isEditing = isEditingEmail,
                     onEditClick = { isEditingEmail = !isEditingEmail },
-                    onValueChange = { editableEmail = it },
+                    onValueChange = {
+                        editableEmail = it
+                        emailError = validateEmail(it)
+                    },
                     isError = emailError != null
                 )
-                emailError?.let {
-                    Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall)
+
+                if (emailError != null){
+                    Text(
+                        text = emailError!!,
+                        color =  Color.Red,
+                        style =  MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -265,11 +308,20 @@ fun ProfileScreen(
                     value = editablePhone,
                     isEditing = isEditingPhone,
                     onEditClick = { isEditingPhone = !isEditingPhone },
-                    onValueChange = { editablePhone = it },
+                    onValueChange = {
+                        editablePhone = it
+                        phoneError = validatePhone(it)
+                    },
                     isError = phoneError != null
                 )
-                phoneError?.let {
-                    Text(it, color = Color.Red, style = MaterialTheme.typography.labelSmall)
+
+                if (phoneError != null){
+                    Text(
+                        text = phoneError!!,
+                        color =  Color.Red,
+                        style =  MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(start = 8.dp, top = 4.dp)
+                    )
                 }
 
             }
@@ -278,13 +330,30 @@ fun ProfileScreen(
 
             Button(
                 onClick = {
+                    emailError = validateEmail(editableEmail)
+                    phoneError = validatePhone(editablePhone)
+
+                    if (emailError == null && phoneError == null) {
+                        val datosUpdate = SellerUpdate(
+                            email = editableEmail,
+                            PhoneNumber = editablePhone
+                        )
+                        userViewModel.updateProfile(datosUpdate)
+                        isEditingEmail = false
+                        isEditingPhone = false
+                    }
+
                     val datosUpdate = SellerUpdate(
                         email = editableEmail,
                         PhoneNumber = editablePhone
                     )
+
                     userViewModel.updateProfile(datosUpdate)
+
                     isEditingEmail = false
                     isEditingPhone = false
+
+
                 },
                 modifier = Modifier
                     .fillMaxWidth()

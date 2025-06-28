@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import com.example.primasaapp_mvil.data.repository.AuthRepository
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import java.lang.Error
 
@@ -22,7 +23,7 @@ class PasswordViewlModel @Inject constructor(
     var newPassword by mutableStateOf("")
     var confirmPassword by mutableStateOf("")
     var resetToken by mutableStateOf("")
-    var isLoading by mutableStateOf(false)
+    val isLoading = MutableStateFlow(false)
     var success by mutableStateOf(false)
 
     // Manejo de estado del token con mensaje plano
@@ -31,7 +32,7 @@ class PasswordViewlModel @Inject constructor(
 
     fun requestPasswordReset(onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            isLoading = true
+            isLoading.value = true
             try {
                 val response = repository.sendResetEmail(email)
                 val body = response.body()
@@ -45,16 +46,17 @@ class PasswordViewlModel @Inject constructor(
             } catch (e: Exception) {
                 onError(e.message ?: "Ocurrió un error al enviar el correo.")
             } finally {
-                isLoading = false
+                isLoading.value = false
             }
         }
     }
 
     fun verifyToken(token: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            isLoading = true
+            isLoading.value = true
             try {
                 val response = repository.verifyToken(token)
+                println(response)
                 val body = response.body()
 
                 if (response.isSuccessful && body?.status == "success") {
@@ -71,7 +73,7 @@ class PasswordViewlModel @Inject constructor(
                 tokenVerified = false
                 tokenVerificationMessage = "Error inesperado: ${e.localizedMessage}"
             } finally {
-                isLoading = false
+                isLoading.value = false
             }
         }
     }
@@ -103,7 +105,7 @@ class PasswordViewlModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            isLoading = true
+            isLoading.value = true
             try {
                 println("Enviando solicitud para cambiar la contraseña con token: $resetToken")
 
@@ -128,7 +130,7 @@ class PasswordViewlModel @Inject constructor(
                 println("Excepción: $exceptionMsg")
                 onError(exceptionMsg)
             } finally {
-                isLoading = false
+                isLoading.value = false
                 println("Proceso de cambio de contraseña finalizado.")
             }
         }

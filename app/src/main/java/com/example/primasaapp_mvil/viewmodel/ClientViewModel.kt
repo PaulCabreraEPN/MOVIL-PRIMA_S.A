@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,34 +28,38 @@ class ClientViewModel @Inject constructor(
     private val _clients = MutableStateFlow<List<Client>>(emptyList())
     val clients: StateFlow<List<Client>> = _clients
 
-    private val _registerResult = MutableStateFlow<Result<String>?>(null)
+    val _registerResult = MutableStateFlow<Result<String>?>(null)
     val registerResult: StateFlow<Result<String>?> = _registerResult
 
-    private val _selectedClient = MutableStateFlow<Client?>(null)
+    val _selectedClient = MutableStateFlow<Client?>(null)
     val selectedClient: StateFlow<Client?> = _selectedClient
+
+    val isLoadingClient = MutableStateFlow(false)
+    val isLoading = MutableStateFlow(false)
 
     init {
         fetchClients()
     }
 
-    val isLoadingClient = MutableStateFlow(false)
-    val isLoading = MutableStateFlow(false)
-
-    private fun fetchClients() {
+    fun fetchClients() {
         viewModelScope.launch {
-
-            dataStoreManager.tokenFlow.collect { token ->
-                if (!token.isNullOrBlank()) {
-                    try {
-                        val response = repository.getClients(token) // Debe devolver List<Client>
-                        _clients.value = response
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+            isLoading.value = true
+            val token = dataStoreManager.tokenFlow.firstOrNull()
+            if (!token.isNullOrBlank()) {
+                try {
+                    val response = repository.getClients(token)
+                    _clients.value = response
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    isLoading.value = false
                 }
+            } else {
+                isLoading.value = false
             }
         }
     }
+
 
     fun registerClient(client: ClientRequest) {
         viewModelScope.launch {

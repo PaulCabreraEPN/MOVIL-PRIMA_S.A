@@ -29,7 +29,9 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifi
         startDestination = "home",
         modifier = modifier
     ) {
-        composable("home") { HomeScreen(navController = navController) }
+        composable("home") { HomeScreen(
+            navController = navController,
+            orderViewModel = orderViewModel) }
 
         composable("inventory") {
             InventarioView(onCategoriaClick = { categoria ->
@@ -47,6 +49,10 @@ fun NavigationHost(navController: NavHostController, modifier: Modifier = Modifi
 
         composable("profile") {
             ProfileScreen(navController = navController, userViewModel = userViewModel)
+        }
+
+        composable("topProducts") {
+            TopProductosMasVendidosScreen()
         }
 
         composable("categoria/{nombreCategoria}") { backStackEntry ->

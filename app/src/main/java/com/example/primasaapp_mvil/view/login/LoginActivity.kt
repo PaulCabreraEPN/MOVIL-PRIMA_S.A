@@ -2,40 +2,35 @@ package com.example.primasaapp_mvil.view.login
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.Surface
 
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.primasaapp_mvil.ui.theme.PRIMASAAPPMóvilTheme
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.ui.platform.LocalContext
@@ -43,16 +38,31 @@ import androidx.compose.ui.text.style.TextAlign
 import com.example.primasaapp_mvil.R
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.navigation.NavController
+
 // Navegación principal
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-
-// Para pasar el navController a los composables
-import androidx.navigation.NavController
 import com.example.primasaapp_mvil.view.modules.MainScreenActivity
 import kotlinx.coroutines.launch
+
+
 
 @AndroidEntryPoint
 class LoginActivity : ComponentActivity() {
@@ -133,29 +143,29 @@ fun LoginScreen(navController: NavController, viewModel: LoginViewModel = hiltVi
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     val state = viewModel.loginState
+    val isLoading by viewModel.isLoading.collectAsState()
 
-    // Detectar login exitoso y lanzar nueva Activity
+    BackHandler(enabled = true) {}
+
     LaunchedEffect(state?.isSuccess) {
         if (state?.isSuccess == true) {
             context.startActivity(Intent(context, MainScreenActivity::class.java))
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF6F6F6)),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Encabezado azul con logo
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Fondo azul
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.33f)
-                .background(Color(0xFF1E519D)),
-            contentAlignment = Alignment.Center
+                .height(340.dp)
+                .background(Color(0xFF1E519D))
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
                 Image(
                     painter = painterResource(id = R.drawable.logo_atlas_w),
                     contentDescription = "Logo",
@@ -173,118 +183,128 @@ fun LoginScreen(navController: NavController, viewModel: LoginViewModel = hiltVi
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Iniciar Sesión",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Usuario
-        TextField(
-            value = username,
-            onValueChange = { username = it },
-            label = { Text("Nombre de Usuario") },
+        // Contenedor blanco con esquina superior derecha redondeada
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(60.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color.White,
-                focusedContainerColor = Color.White
-            )
-        )
+                .fillMaxSize()
+                .padding(top = 280.dp) // superpuesto sobre el fondo azul
+                .background(
+                    color = Color.White,
+                    shape = RoundedCornerShape(topEnd = 64.dp)
+                )
+                .zIndex(1f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Iniciar Sesión",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
 
-        Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-        // Contraseña
-        TextField(
-            value = password,
-            onValueChange = { password = it },
-            label = { Text("Contraseña") },
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                val icon = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                    Icon(imageVector = icon, contentDescription = "Toggle Password Visibility")
+                TextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Nombre de Usuario") },
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(60.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                TextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Contraseña") },
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        val icon = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(imageVector = icon, contentDescription = "Toggle Password Visibility")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(60.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = TextFieldDefaults.colors(
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                when {
+                    state?.isSuccess == true -> {
+                        Text("Login exitoso", color = Color.Green)
+                    }
+                    state?.isFailure == true -> {
+                        Text("${state.exceptionOrNull()?.message}", color = Color.Red)
+                    }
                 }
-            },
-            modifier = Modifier
-                .fillMaxWidth(0.8f)
-                .height(60.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color.White,
-                focusedContainerColor = Color.White
-            )
-        )
 
-        Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-        // Botón de iniciar sesión
-        Button(
-            onClick = {viewModel.login(username,password)},
-            modifier = Modifier
-                .width(206.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1E519D),
-                contentColor = Color.White
-            )
-        ) {
-            Text("Iniciar Sesión")
-        }
+                Button(
+                    onClick = { viewModel.login(username, password) },
+                    modifier = Modifier
+                        .width(206.dp)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF1E519D),
+                        contentColor = Color.White
+                    )
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Text("Iniciar Sesión", color = Color.White)
+                    }
+                }
 
-        when {
-            state?.isSuccess == true -> {
-                Text("Login exitoso", color = Color.Green)
-                // Almacenar el token
+                Spacer(modifier = Modifier.weight(1f))
+
+                TextButton(
+                    onClick = { navController.navigate("recovery") },
+                    modifier = Modifier.padding(bottom = 20.dp)
+                ) {
+                    Text(
+                        text = "¿Olvidaste tu contraseña?",
+                        color = Color(0xFF999999)
+                    )
+                }
             }
-            state?.isFailure == true -> {
-                Text("Error: ${state.exceptionOrNull()?.message}", color = Color.Red)
-            }
-        }
-
-
-        Spacer(modifier = Modifier.weight(1f))
-
-
-        // Botón de recuperación de contraseña
-        Button(
-            onClick = { navController.navigate("recovery") },
-            modifier = Modifier.padding(bottom = 20.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFF6F6F6),
-                contentColor = Color(0xFF999999)
-            )
-        ) {
-            Text("¿Olvidaste tu contraseña?")
         }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    PRIMASAAPPMóvilTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            LoginScreen(
-                navController = rememberNavController() // NavController mock
-            )
-        }
-    }
-}
+
 
 
 @Composable
 fun StepEmailScreen(viewModel: PasswordViewlModel, onNext: () -> Unit, onBack: () -> Unit) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
         modifier = Modifier
@@ -381,7 +401,15 @@ fun StepEmailScreen(viewModel: PasswordViewlModel, onNext: () -> Unit, onBack: (
                 contentColor = Color.White
             )
         ) {
-            Text("Siguiente")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text("Siguiente", color = Color.White)
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -399,9 +427,28 @@ fun StepEmailScreen(viewModel: PasswordViewlModel, onNext: () -> Unit, onBack: (
     }
 
     // SnackbarHost fuera del layout principal
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        SnackbarHost(hostState = snackbarHostState)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp), // opcional: espacio desde el borde inferior
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        SnackbarHost(
+            hostState = snackbarHostState
+        ) { data ->
+            val isError = data.visuals.message.contains("error", ignoreCase = true)
+            Snackbar(
+                snackbarData = data,
+                containerColor = if (isError) Color.Red else Color(0xFF005BBB),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(12.dp), // opcional: esquinas redondeadas
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .fillMaxWidth()
+            )
+        }
     }
+
 }
 
 @Composable
@@ -412,6 +459,7 @@ fun StepTokenScreen(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
         modifier = Modifier
@@ -508,7 +556,15 @@ fun StepTokenScreen(
                 contentColor = Color.White
             )
         ) {
-            Text("Verificar")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text("Verificar", color = Color.White)
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -526,9 +582,28 @@ fun StepTokenScreen(
     }
 
     // SnackbarHost fuera del layout principal
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        SnackbarHost(hostState = snackbarHostState)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = 16.dp), // opcional: espacio desde el borde inferior
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        SnackbarHost(
+            hostState = snackbarHostState
+        ) { data ->
+            val isError = data.visuals.message.contains("error", ignoreCase = true)
+            Snackbar(
+                snackbarData = data,
+                containerColor = if (isError) Color.Red else Color(0xFF005BBB),
+                contentColor = Color.White,
+                shape = RoundedCornerShape(12.dp), // opcional: esquinas redondeadas
+                modifier = Modifier
+                    .padding(horizontal = 24.dp)
+                    .fillMaxWidth()
+            )
+        }
     }
+
 }
 
 
@@ -546,6 +621,7 @@ fun ChangePassScreen(
     var passwordErrorMsg by remember { mutableStateOf("") }
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     // Validaciones
     val passwordRegex = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{8,}$")
@@ -720,7 +796,15 @@ fun ChangePassScreen(
                 contentColor = Color.White
             )
         ) {
-            Text("Siguiente")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Text("Guardar contraseña", color = Color.White)
+            }
         }
 
         Spacer(modifier = Modifier.weight(1f))
@@ -763,64 +847,59 @@ fun SuccesedScreen(onNext: () -> Unit) {
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Contraseña modificada con éxito",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.33f),
-            contentAlignment = Alignment.Center
-        ){
-            Column (horizontalAlignment = Alignment.CenterHorizontally){
-                Image(
-                    painter = painterResource( id = R.drawable.success_logo),
-                    contentDescription = "Éxito Logo",
-                    modifier = Modifier
-                        .width(131.dp)
-                        .height(131.dp)
-                )
-            }
-        }
-
-
-
-        Text(
-            text = "Ya puedes iniciar sesión con tu nueva contraseña.",
-            fontSize = 16.sp,
-            color = Color.Black,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Botón de iniciar sesión
-        Button(
-            onClick = {
-                onNext()
-            },
-            modifier = Modifier
-                .width(206.dp)
-                .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1E519D),
-                contentColor = Color.White
-            )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 24.dp)
         ) {
-            Text("Iniciar Sesión")
-        }
+            Text(
+                text = "Contraseña modificada con éxito",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black,
+                textAlign = TextAlign.Center
+            )
 
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Image(
+                painter = painterResource(id = R.drawable.success_logo),
+                contentDescription = "Éxito Logo",
+                modifier = Modifier
+                    .width(131.dp)
+                    .height(131.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Ya puedes iniciar sesión con tu nueva contraseña.",
+                fontSize = 16.sp,
+                color = Color.Black,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Botón de iniciar sesión
+            Button(
+                onClick = { onNext() },
+                modifier = Modifier
+                    .width(206.dp)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF1E519D),
+                    contentColor = Color.White
+                )
+            ) {
+                Text("Iniciar Sesión")
+            }
+        }
     }
 }
+
 
 
 

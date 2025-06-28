@@ -101,10 +101,10 @@ interface ApiService {
         @Body order: OrderToSend
     ): Response<OrderResponsetoSend>
 
-    @DELETE("orders/{id}")
+    @DELETE("orders/delete/{id}")
     suspend fun deleteOrder(
         @Path("id") id: String,
         @Header("Authorization") token: String
-    )
+    ): Response<OrderResponsetoSend>
 
 }
